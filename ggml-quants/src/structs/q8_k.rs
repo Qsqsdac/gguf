@@ -21,6 +21,7 @@ impl_data_block! {
 
 impl Quantize<f32, _256> for Q8K {
     fn quantize(data: &[f32; _256]) -> Self {
+        // 验证块大小是否正确，需要对常量进行断言
         #[allow(clippy::assertions_on_constants)]
         const {
             assert!(Self::COUNT == _256)

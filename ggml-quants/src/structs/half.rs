@@ -8,6 +8,7 @@ impl_data_block!(bf16 = ty::BF16; bf16::ZERO);
 impl Quantize<f32, _1> for f16 {
     #[inline]
     fn quantize(&[data]: &[f32; _1]) -> Self {
+        // 验证块大小是否正确，需要对常量进行断言
         #[allow(clippy::assertions_on_constants)]
         const {
             assert!(Self::COUNT == _1)
@@ -23,6 +24,7 @@ impl Quantize<f32, _1> for f16 {
 impl Quantize<f32, _1> for bf16 {
     #[inline]
     fn quantize(&[data]: &[f32; _1]) -> Self {
+        // 验证块大小是否正确，需要对常量进行断言
         #[allow(clippy::assertions_on_constants)]
         const {
             assert!(Self::COUNT == _1)

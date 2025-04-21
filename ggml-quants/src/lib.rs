@@ -123,6 +123,7 @@ pub mod types;
 
 #[cfg(test)]
 #[allow(dead_code)]
+// 测试工具，仅在测试时使用
 pub(crate) mod test_utils {
     use crate::Quantize;
     use std::fmt;
