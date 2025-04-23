@@ -41,7 +41,7 @@ let data: [f32; 32] = [
 let quantized = Q8_1::quantize(&data);
 
 // 反量化数据
-let dequantized = quantized.dequantize();
+let dequantized: [f32; 32] = quantized.dequantize();
 ```
 
 ## 应用场景
