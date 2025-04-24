@@ -222,11 +222,6 @@ mod tests {
     const N: usize = 32;
 
     #[test]
-    fn test_block_accuracy() {
-        crate::test_utils::test::<N, Blk>(4e-3, 0.0);
-    }
-
-    #[test]
     fn test_quant_dequant_slice_ok() {  
         let mut rng = rand::rng();
         let input: Vec<f32> = (0..(2 * N)).map(|_| rng.random_range(-1.0..1.0)).collect();

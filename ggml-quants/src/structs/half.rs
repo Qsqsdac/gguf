@@ -36,3 +36,13 @@ impl Quantize<f32, _1> for bf16 {
         [self.to_f32()]
     }
 }
+
+#[test]
+fn test_f16() {
+    crate::test_utils::test::<1, f16>(4e-3, 0.);
+}
+
+#[test]
+fn test_bf16() {
+    crate::test_utils::test::<1, bf16>(8e-3, 0.);
+}

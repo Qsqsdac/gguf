@@ -55,3 +55,8 @@ impl Quantize<f32, _256> for Q8K {
         self.quants.map(|x| x as f32 * delta)
     }
 }
+
+#[test]
+fn test_q8_k() {
+    crate::test_utils::test::<256, Q8K>(4.5e-3, 0.);
+}
