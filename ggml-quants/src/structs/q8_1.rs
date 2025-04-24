@@ -4,10 +4,14 @@ use half::f16;
 use std::iter::zip;
 
 // TODO: 比 [Q8_0](crate::Q8_0) 多算了一个 sum，不知道有什么用
+/// Q8_1 量化结构体
 #[repr(C, align(4))]
 pub struct Q8_1 {
+    /// 缩放因子
     pub delta: f16,
+    /// 量化和
     pub sum: f16,
+    /// 量化值
     pub quants: [i8; _32],
 }
 

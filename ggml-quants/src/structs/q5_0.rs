@@ -2,10 +2,14 @@ use super::{_32, f16, max_by_abs};
 use crate::{DataBlock, Quantize};
 use std::iter::zip;
 
+/// Q5_0 量化结构体
 #[repr(C)]
 pub struct Q5_0 {
+    /// 缩放因子
     pub delta: f16,
+    /// 高位量化值
     pub qh: [u8; _32 / 8],
+    /// 低位量化值
     pub ql: [u8; _32 / 2],
 }
 

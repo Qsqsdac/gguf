@@ -3,10 +3,14 @@ use crate::{DataBlock, Quantize};
 use half::f16;
 use std::iter::zip;
 
+/// Q8K 量化结构体
 #[repr(C)]
 pub struct Q8K {
+    /// 缩放因子
     pub delta: f16,
+    /// 量化值
     pub quants: [i8; _256],
+    /// 量化和
     pub sums: [i16; _256 / 16],
 }
 

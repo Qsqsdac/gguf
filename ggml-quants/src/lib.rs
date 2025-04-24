@@ -1,16 +1,26 @@
 ﻿#![doc = include_str!("../README.md")]
-#![deny(warnings)]
+#![deny(warnings, missing_docs)]
+
+//! 本模块提供了数据块的定义和量化/反量化的实现。
+//! 包括对不同数据类型的量化支持，以及并行处理的扩展。
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
+/// 数据块定义
 pub trait DataBlock: Sized + 'static {
+    /// 数据块的唯一标识符（仅在启用 `types` 功能时可用）
     #[cfg(feature = "types")]
     const ID: digit_layout::DigitLayout;
+
+    /// 数据块的元素数量
     const COUNT: usize;
+
+    /// 数据块的全零值
     const ZEROS: Self;
 }
 
+/// 宏用于实现 `DataBlock` 特性
 macro_rules! impl_data_block {
     ($ty:ty = $id:expr; $zero:expr ) => {
         impl DataBlock for $ty {
@@ -22,6 +32,7 @@ macro_rules! impl_data_block {
     };
 }
 
+// 为常见数据类型实现 `DataBlock`
 use digit_layout::types as ty;
 impl_data_block!(u8  = ty::U8 ; 0 );
 impl_data_block!(i8  = ty::I8 ; 0 );
@@ -34,11 +45,20 @@ impl_data_block!(u64 = ty::U64; 0 );
 impl_data_block!(i64 = ty::I64; 0 );
 impl_data_block!(f64 = ty::F64; 0.);
 
+/// 量化和反量化的特性
+///
+/// # 类型参数
+/// - `T`: 数据类型
+/// - `N`: 数据块大小
 pub trait Quantize<T, const N: usize>: DataBlock {
+    /// 将数据量化为当前类型
     fn quantize(data: &[T; N]) -> Self;
+
+    /// 将当前类型的数据反量化为原始数据
     fn dequantize(&self) -> [T; N];
 }
 
+/// 为支持 `f16` 的数据块实现量化和反量化
 impl<Blk, const N: usize> Quantize<f16, N> for Blk
 where
     Blk: Quantize<f32, N>,
@@ -53,6 +73,7 @@ where
     }
 }
 
+/// 为支持 `bf16` 的数据块实现量化和反量化
 impl<Blk, const N: usize> Quantize<bf16, N> for Blk
 where
     Blk: Quantize<f32, N>,
@@ -61,23 +82,36 @@ where
     fn quantize(data: &[bf16; N]) -> Self {
         Self::quantize(&data.map(bf16::to_f32))
     }
+
     #[inline]
     fn dequantize(&self) -> [bf16; N] {
         self.dequantize().map(bf16::from_f32)
     }
 }
 
+/// 并行量化和反量化的扩展特性
+///
+/// # 类型参数
+/// - `T`: 数据类型
+/// - `N`: 数据块大小
 pub trait QuantExt<T, const N: usize>: Sized {
+    /// 将数据切片量化为目标类型
     fn quantize_slice(dst: &mut [Self], src: &[T]) -> Result<(), QuantizeError>;
+
+    /// 将目标类型的数据切片反量化为原始数据
     fn dequantize_slice(dst: &mut [T], src: &[Self]) -> Result<(), QuantizeError>;
 }
 
+/// 量化错误类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum QuantizeError {
+    /// 数据长度不可整除
     Indivisible,
+    /// 数据长度不匹配
     LengthMismatch,
 }
 
+/// 为实现 `Quantize` 的数据块提供并行量化和反量化支持
 impl<Blk, T, const N: usize> QuantExt<T, N> for Blk
 where
     Blk: Quantize<T, N> + Send + Sync,
@@ -118,16 +152,22 @@ pub use structs::*;
 #[cfg(feature = "types")]
 pub extern crate digit_layout;
 
+/// 类型定义模块
 #[cfg(feature = "types")]
 pub mod types;
 
 #[cfg(test)]
-#[allow(dead_code)]
-// 测试工具，仅在测试时使用
 pub(crate) mod test_utils {
     use crate::Quantize;
     use std::fmt;
 
+    /// 测试量化和反量化的工具函数
+    ///
+    /// # 参数
+    /// - `N`: 数据块大小
+    /// - `T`: 数据类型
+    /// - `abs`: 绝对误差阈值
+    /// - `rel`: 相对误差阈值
     pub fn test<const N: usize, T: Quantize<f32, N>>(abs: f32, rel: f32) {
         use rand::Rng;
         use std::iter::zip;
@@ -151,12 +191,16 @@ pub(crate) mod test_utils {
         assert!(ec.outliers().is_empty());
     }
 
+    /// 差异计算
     struct Diff {
+        /// 绝对误差
         pub abs: f32,
+        /// 相对误差
         pub rel: f32,
     }
 
     impl Diff {
+        /// 创建新的差异
         fn new(a: f32, b: f32) -> Self {
             let abs = (a - b).abs();
             let rel = abs / (a.abs() + b.abs() + f32::EPSILON);
@@ -164,6 +208,7 @@ pub(crate) mod test_utils {
         }
     }
 
+    /// 错误收集器
     struct ErrorCollector {
         threshold: Diff,
         max_diff: Diff,
@@ -172,6 +217,7 @@ pub(crate) mod test_utils {
     }
 
     impl ErrorCollector {
+        /// 创建新的错误收集器
         fn new(abs: f32, rel: f32) -> Self {
             Self {
                 threshold: Diff { abs, rel },
@@ -181,6 +227,7 @@ pub(crate) mod test_utils {
             }
         }
 
+        /// 添加新的差异
         fn push(&mut self, diff: Diff) {
             self.max_diff.abs = f32::max(self.max_diff.abs, diff.abs);
             self.max_diff.rel = f32::max(self.max_diff.rel, diff.rel);
@@ -192,6 +239,7 @@ pub(crate) mod test_utils {
             self.count += 1;
         }
 
+        /// 获取异常值索引
         fn outliers(&self) -> &[usize] {
             &self.outliers
         }

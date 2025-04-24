@@ -2,9 +2,12 @@ use super::{_32, max_abs};
 use crate::{DataBlock, Quantize};
 use half::f16;
 
+/// Q8_0 量化结构体
 #[repr(C)]
 pub struct Q8_0 {
+    /// 缩放因子
     pub delta: f16,
+    /// 量化值
     pub quants: [i8; _32],
 }
 

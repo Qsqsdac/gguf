@@ -2,10 +2,14 @@ use super::{_32, DeltaMin, min_max};
 use crate::{DataBlock, Quantize};
 use std::iter::zip;
 
+/// Q5_1 量化结构体
 #[repr(C)]
 pub struct Q5_1 {
+    /// 缩放因子和最小值
     pub delta_min: DeltaMin,
+    /// 高位量化值
     pub qh: [u8; _32 / 8],
+    /// 低位量化值
     pub ql: [u8; _32 / 2],
 }
 
