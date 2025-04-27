@@ -1,40 +1,36 @@
-﻿macro_rules! layout {
+﻿#![allow(missing_docs)]
+// 调用 layout! 宏，允许缺少文档注释
+
+macro_rules! layout {
     ($name:ident; $group:expr) => {
         digit_layout::layout!($name; [$group] in size_of::<crate::$name>() as _);
     };
 }
 
-#[allow(missing_docs)]
-mod auto_generated_layouts {
-    layout!(IQ1M    ; 256);
-    layout!(IQ1S    ; 256);
-    layout!(IQ2S    ; 256);
-    layout!(IQ2XS   ; 256);
-    layout!(IQ2XXS  ; 256);
-    layout!(IQ3S    ; 256);
-    layout!(IQ3XXS  ; 256);
-    layout!(IQ4NL   ;  32);
-    layout!(IQ4XS   ; 256);
-    layout!(Q2K     ; 256);
-    layout!(Q3K     ; 256);
-    layout!(Q4_0_4_4; 256);
-    layout!(Q4_0_4_8; 256);
-    layout!(Q4_0_8_8; 256);
-    layout!(Q4_0    ;  32);
-    layout!(Q4_1    ;  32);
-    layout!(Q4K     ; 256);
-    layout!(Q5_0    ;  32);
-    layout!(Q5_1    ;  32);
-    layout!(Q5K     ; 256);
-    layout!(Q6K     ; 256);
-    layout!(Q8_0    ;  32);
-    layout!(Q8_1    ;  32);
-    layout!(Q8K     ; 256);
-}
-
-/// 公开所有的量化结构体
-pub use auto_generated_layouts::*;
-
+layout!(IQ1M    ; 256);
+layout!(IQ1S    ; 256);
+layout!(IQ2S    ; 256);
+layout!(IQ2XS   ; 256);
+layout!(IQ2XXS  ; 256);
+layout!(IQ3S    ; 256);
+layout!(IQ3XXS  ; 256);
+layout!(IQ4NL   ;  32);
+layout!(IQ4XS   ; 256);
+layout!(Q2K     ; 256);
+layout!(Q3K     ; 256);
+layout!(Q4_0_4_4; 256);
+layout!(Q4_0_4_8; 256);
+layout!(Q4_0_8_8; 256);
+layout!(Q4_0    ;  32);
+layout!(Q4_1    ;  32);
+layout!(Q4K     ; 256);
+layout!(Q5_0    ;  32);
+layout!(Q5_1    ;  32);
+layout!(Q5K     ; 256);
+layout!(Q6K     ; 256);
+layout!(Q8_0    ;  32);
+layout!(Q8_1    ;  32);
+layout!(Q8K     ; 256);
 
 #[rustfmt::skip]
 #[test]
