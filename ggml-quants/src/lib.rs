@@ -1,4 +1,4 @@
-﻿#![doc = include_str!("../README.md")]
+#![doc = include_str!("../README.md")]
 #![deny(warnings, missing_docs)]
 
 //! 本模块提供了数据块的定义和量化/反量化的实现。
@@ -92,7 +92,7 @@ where
 /// 并行量化和反量化的扩展特性
 ///
 /// # 类型参数
-/// 
+///
 /// - `T`: 数据类型
 /// - `N`: 数据块大小
 pub trait QuantExt<T, const N: usize>: Sized {
@@ -165,7 +165,7 @@ pub(crate) mod test_utils {
     /// 测试量化和反量化的工具函数
     ///
     /// # 参数
-    /// 
+    ///
     /// - `N`: 数据块大小
     /// - `T`: 数据类型
     /// - `abs`: 绝对误差阈值
@@ -210,7 +210,7 @@ pub(crate) mod test_utils {
         }
     }
 
-    /// 错误收集器
+    /// 误差收集器
     struct ErrorCollector {
         threshold: Diff,
         max_diff: Diff,
@@ -219,7 +219,7 @@ pub(crate) mod test_utils {
     }
 
     impl ErrorCollector {
-        /// 创建新的错误收集器
+        /// 创建新的误差收集器
         fn new(abs: f32, rel: f32) -> Self {
             Self {
                 threshold: Diff { abs, rel },
@@ -268,90 +268,103 @@ mod tests {
     use half::f16;
     use rand::Rng;
 
-    type Blk = Q8_1; // 切换测试类型
     const N: usize = 32;
 
-    #[test]
-    fn test_quant_dequant_slice_ok() {  
-        let mut rng = rand::rng();
-        let input: Vec<f32> = (0..(2 * N)).map(|_| rng.random_range(-1.0..1.0)).collect();
-        let mut quantized: Vec<Blk> = (0..(input.len() / N))
-            .map(|_| Blk::quantize(&[0.0; N]))
-            .collect();
-        let mut output = vec![0f32; input.len()];
+    /// 生成指定量化类型的测试代码
+    macro_rules! generate_tests {
+        ($blk:ty) => {
+            #[test]
+            fn test_quant_dequant_slice_ok() {
+                let mut rng = rand::rng();
+                let input: Vec<f32> = (0..(2 * N)).map(|_| rng.random_range(-1.0..1.0)).collect();
+                let mut quantized: Vec<$blk> = (0..(input.len() / N))
+                    .map(|_| <$blk>::quantize(&[0.0; N]))
+                    .collect();
+                let mut output = vec![0f32; input.len()];
 
-        Blk::quantize_slice(&mut quantized, &input).unwrap();
-        Blk::dequantize_slice(&mut output, &quantized).unwrap();
+                <$blk>::quantize_slice(&mut quantized, &input).unwrap();
+                <$blk>::dequantize_slice(&mut output, &quantized).unwrap();
 
-        for (a, b) in input.iter().zip(&output) {
-            assert!((a - b).abs() < 1e-1, "{a} vs {b}");
-        }
+                for (a, b) in input.iter().zip(&output) {
+                    assert!((a - b).abs() < 1e-1, "{a} vs {b}");
+                }
+            }
+
+            #[test]
+            fn test_quant_slice_indivisible() {
+                let mut rng = rand::rng();
+                let input: Vec<f32> = (0..(N - 1)).map(|_| rng.random_range(-1.0..1.0)).collect();
+                let mut quantized: Vec<$blk> =
+                    (0..1).map(|_| <$blk>::quantize(&[0.0; N])).collect();
+                let err = <$blk>::quantize_slice(&mut quantized, &input).unwrap_err();
+                assert_eq!(err, crate::QuantizeError::Indivisible);
+            }
+
+            #[test]
+            fn test_quant_slice_length_mismatch() {
+                let mut rng = rand::rng();
+                let input: Vec<f32> = (0..(2 * N)).map(|_| rng.random_range(-1.0..1.0)).collect();
+                let mut quantized: Vec<$blk> =
+                    (0..3).map(|_| <$blk>::quantize(&[0.0; N])).collect(); // 应为 2
+                let err = <$blk>::quantize_slice(&mut quantized, &input).unwrap_err();
+                assert_eq!(err, crate::QuantizeError::LengthMismatch);
+            }
+
+            #[test]
+            fn test_dequant_slice_indivisible() {
+                let mut rng = rand::rng();
+                let mut output: Vec<f32> =
+                    (0..(N - 1)).map(|_| rng.random_range(-1.0..1.0)).collect();
+                let src: Vec<$blk> = (0..1).map(|_| <$blk>::quantize(&[0.0; N])).collect();
+                let err = <$blk>::dequantize_slice(&mut output, &src).unwrap_err();
+                assert_eq!(err, crate::QuantizeError::Indivisible);
+            }
+
+            #[test]
+            fn test_dequant_slice_length_mismatch() {
+                let mut rng = rand::rng();
+                let mut output: Vec<f32> =
+                    (0..(2 * N)).map(|_| rng.random_range(-1.0..1.0)).collect();
+                let src: Vec<$blk> = (0..3).map(|_| <$blk>::quantize(&[0.0; N])).collect(); // 应为 2
+                let err = <$blk>::dequantize_slice(&mut output, &src).unwrap_err();
+                assert_eq!(err, crate::QuantizeError::LengthMismatch);
+            }
+
+            #[test]
+            fn test_block_zeros_and_count() {
+                assert_eq!(<$blk>::COUNT, N);
+                let dequant: [f32; N] = <$blk>::quantize(&[0.0; N]).dequantize();
+                assert!(dequant.iter().all(|&x| x == 0.0));
+            }
+
+            #[test]
+            fn test_quantize_f16() {
+                let mut rng = rand::rng();
+                let input: [f16; N] =
+                    core::array::from_fn(|_| f16::from_f32(rng.random_range(-1.0..1.0)));
+                let blk = <$blk as Quantize<f16, N>>::quantize(&input);
+                let dequant = <$blk as Quantize<f16, N>>::dequantize(&blk);
+                for (a, b) in input.iter().zip(&dequant) {
+                    let diff = (a.to_f32() - b.to_f32()).abs();
+                    assert!(diff < 1e-1, "diff = {diff}");
+                }
+            }
+
+            #[test]
+            fn test_quantize_bf16() {
+                let mut rng = rand::rng();
+                let input: [bf16; N] =
+                    core::array::from_fn(|_| bf16::from_f32(rng.random_range(-1.0..1.0)));
+                let blk = <$blk as Quantize<bf16, N>>::quantize(&input);
+                let dequant = <$blk as Quantize<bf16, N>>::dequantize(&blk);
+                for (a, b) in input.iter().zip(&dequant) {
+                    let diff = (a.to_f32() - b.to_f32()).abs();
+                    assert!(diff < 1e-1, "diff = {diff}");
+                }
+            }
+        };
     }
 
-    #[test]
-    fn test_quant_slice_indivisible() {   // 测试量化切片不可整除
-        let mut rng = rand::rng();
-        let input: Vec<f32> = (0..(N - 1)).map(|_| rng.random_range(-1.0..1.0)).collect();
-        let mut quantized: Vec<Blk> = (0..1).map(|_| Blk::quantize(&[0.0; N])).collect();
-        let err = Blk::quantize_slice(&mut quantized, &input).unwrap_err();
-        assert_eq!(err, crate::QuantizeError::Indivisible);
-    }
-
-    #[test]
-    fn test_quant_slice_length_mismatch() {  // 测试量化切片长度不匹配
-        let mut rng = rand::rng();
-        let input: Vec<f32> = (0..(2 * N)).map(|_| rng.random_range(-1.0..1.0)).collect();
-        let mut quantized: Vec<Blk> = (0..3).map(|_| Blk::quantize(&[0.0; N])).collect(); // 应为 2
-        let err = Blk::quantize_slice(&mut quantized, &input).unwrap_err();
-        assert_eq!(err, crate::QuantizeError::LengthMismatch);
-    }
-
-    #[test]
-    fn test_dequant_slice_indivisible() {  // 测试反量化切片不可整除
-        let mut rng = rand::rng();
-        let mut output: Vec<f32> = (0..(N - 1)).map(|_| rng.random_range(-1.0..1.0)).collect();
-        let src: Vec<Blk> = (0..1).map(|_| Blk::quantize(&[0.0; N])).collect();
-        let err = Blk::dequantize_slice(&mut output, &src).unwrap_err();
-        assert_eq!(err, crate::QuantizeError::Indivisible);
-    }
-
-    #[test]
-    fn test_dequant_slice_length_mismatch() {  // 测试反量化切片长度不匹配
-        let mut rng = rand::rng();
-        let mut output: Vec<f32> = (0..(2 * N)).map(|_| rng.random_range(-1.0..1.0)).collect();
-        let src: Vec<Blk> = (0..3).map(|_| Blk::quantize(&[0.0; N])).collect(); // 应为 2
-        let err = Blk::dequantize_slice(&mut output, &src).unwrap_err();
-        assert_eq!(err, crate::QuantizeError::LengthMismatch);
-    }
-
-    #[test]
-    fn test_block_zeros_and_count() {   // 测试全零量化块
-        assert_eq!(Blk::COUNT, N);
-        let dequant: [f32; N] = Blk::quantize(&[0.0; N]).dequantize();
-        assert!(dequant.iter().all(|&x| x == 0.0));
-    }
-
-    #[test]
-    fn test_quantize_f16() {
-        let mut rng = rand::rng();
-        let input: [f16; N] = core::array::from_fn(|_| f16::from_f32(rng.random_range(-1.0..1.0)));
-        let blk = <Blk as Quantize<f16, N>>::quantize(&input);
-        let dequant = <Blk as Quantize<f16, N>>::dequantize(&blk);
-        for (a, b) in input.iter().zip(&dequant) {
-            let diff = (a.to_f32() - b.to_f32()).abs();
-            assert!(diff < 1e-1, "diff = {diff}");
-        }
-    }
-    
-    #[test]
-    fn test_quantize_bf16() {
-        let mut rng = rand::rng();
-        let input: [bf16; N] = core::array::from_fn(|_| bf16::from_f32(rng.random_range(-1.0..1.0)));
-        let blk = <Blk as Quantize<bf16, N>>::quantize(&input);
-        let dequant = <Blk as Quantize<bf16, N>>::dequantize(&blk);
-        for (a, b) in input.iter().zip(&dequant) {
-            let diff = (a.to_f32() - b.to_f32()).abs();
-            assert!(diff < 1e-1, "diff = {diff}");
-        }
-    }
+    // 以 Q8_0 为例生成测试
+    generate_tests!(Q8_0);
 }

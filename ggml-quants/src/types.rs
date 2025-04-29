@@ -1,5 +1,5 @@
 ﻿#![allow(missing_docs)]
-// 调用 layout! 宏，允许缺少文档注释
+// 不必为每个 layout! 类型都添加文档
 
 macro_rules! layout {
     ($name:ident; $group:expr) => {
