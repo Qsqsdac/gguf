@@ -96,8 +96,8 @@ mod tests {
     fn test_read_bool() {
         let data: &[u8] = &[0, 1, 2];
         let mut reader = GGufReader::new(data);
-        assert_eq!(reader.read_bool().unwrap(), false);
-        assert_eq!(reader.read_bool().unwrap(), true);
+        assert!(!reader.read_bool().unwrap()); 
+        assert!(reader.read_bool().unwrap());
         assert!(matches!(reader.read_bool(), Err(GGufReadError::Bool(2))));
     }
 }
