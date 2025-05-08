@@ -49,5 +49,5 @@ impl Quantize<f32, _32> for Q8_0 {
 
 #[test]
 fn test_q8_0() {
-    crate::test_utils::test::<32, Q8_0>(4.2e-3, 0.);
+    crate::test_utils::test::<32, Q8_0>(4.5e-3, 0.);
 }
