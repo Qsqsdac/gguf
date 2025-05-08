@@ -272,7 +272,7 @@ mod tests {
 
     /// 生成指定量化类型的测试代码
     macro_rules! generate_tests {
-        ($blk:ty) => {
+        ($blk:ty, $tolerance:expr) => {
             #[test]
             fn test_quant_dequant_slice_ok() {
                 let mut rng = rand::rng();
@@ -286,7 +286,7 @@ mod tests {
                 <$blk>::dequantize_slice(&mut output, &quantized).unwrap();
 
                 for (a, b) in input.iter().zip(&output) {
-                    assert!((a - b).abs() < 1e-1, "{a} vs {b}");
+                    assert!((a - b).abs() < $tolerance, "{a} vs {b}");
                 }
             }
 
@@ -346,7 +346,7 @@ mod tests {
                 let dequant = <$blk as Quantize<f16, N>>::dequantize(&blk);
                 for (a, b) in input.iter().zip(&dequant) {
                     let diff = (a.to_f32() - b.to_f32()).abs();
-                    assert!(diff < 1e-1, "diff = {diff}");
+                    assert!(diff < $tolerance, "diff = {diff}");
                 }
             }
 
@@ -359,12 +359,12 @@ mod tests {
                 let dequant = <$blk as Quantize<bf16, N>>::dequantize(&blk);
                 for (a, b) in input.iter().zip(&dequant) {
                     let diff = (a.to_f32() - b.to_f32()).abs();
-                    assert!(diff < 1e-1, "diff = {diff}");
+                    assert!(diff < $tolerance, "diff = {diff}");
                 }
             }
         };
     }
 
     // 以 Q8_0 为例生成测试
-    generate_tests!(Q8_0);
+    generate_tests!(Q8_0, 4.5e-3);
 }
