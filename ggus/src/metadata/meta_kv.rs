@@ -304,9 +304,13 @@ mod tests {
         // 测试不同无符号整数类型的读取
         let test_cases = [
             (Ty::U8, &[42u8][..], 42usize),
+            (Ty::I8, &[42i8 as u8][..], 42usize),
             (Ty::U16, &encode_u16(1000)[..], 1000usize),
+            (Ty::I16, &encode_i16(1000)[..], 1000usize),
             (Ty::U32, &encode_u32(100000)[..], 100000usize),
+            (Ty::I32, &encode_i32(100000)[..], 100000usize),
             (Ty::U64, &encode_u64(10000000000)[..], 10000000000usize),
+            (Ty::I64, &encode_i64(10000000000)[..], 10000000000usize),
             (Ty::Bool, &[1][..], 1usize),
         ];
 
@@ -443,21 +447,15 @@ mod tests {
         let kv = GGufMetaKV::new(&data).unwrap();
 
         // 使用 catch_unwind 捕获 panic
-        let result = catch_unwind(|| {
+        let result_int = catch_unwind(|| {
             kv.read_integer();
+        });
+        let result_uint = catch_unwind(|| {
+            kv.read_unsigned();
         });
 
         // 验证确实发生了 panic
-        assert!(result.is_err());
-
-        // 检查 panic 消息内容
-        if let Err(panic_value) = result {
-            if let Some(message) = panic_value.downcast_ref::<&str>() {
-                assert!(message.contains("not an integer type"));
-            } else {
-                // 如果不是字符串消息，至少确认发生了 panic
-                assert!(true);
-            }
-        }
+        assert!(result_int.is_err());
+        assert!(result_uint.is_err());
     }
 }

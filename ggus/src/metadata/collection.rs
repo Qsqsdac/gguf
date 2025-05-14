@@ -652,6 +652,15 @@ mod tests {
                 "llama.use_parallel_residual".to_string(),
                 (Ty::Bool, encode_bool(true)),
             );
+            map.insert(
+                "llama.tensor_data_layout".to_string(),
+                (Ty::String, encode_string("row-major")),
+            );
+            map.insert("llama.expert_count".to_string(), (Ty::U32, encode_u32(0)));
+            map.insert(
+                "llama.expert_used_count".to_string(),
+                (Ty::U32, encode_u32(0)),
+            );
 
             // 分词器相关字段
             map.insert(
@@ -672,6 +681,62 @@ mod tests {
                     Ty::String,
                     encode_string("<|im_start|>user\n{prompt}<|im_end|>"),
                 ),
+            );
+            map.insert(
+                "tokenizer.ggml.unknown_token_id".to_string(),
+                (Ty::U32, encode_u32(0)),
+            );
+            map.insert(
+                "tokenizer.ggml.separator_token_id".to_string(),
+                (Ty::U32, encode_u32(3)),
+            );
+            map.insert(
+                "tokenizer.ggml.padding_token_id".to_string(),
+                (Ty::U32, encode_u32(4)),
+            );
+            map.insert(
+                "tokenizer.ggml.tokens".to_string(),
+                (Ty::Array, encode_string_array(&["<bos>", "<eos>", "hello"])),
+            );
+            map.insert(
+                "tokenizer.ggml.scores".to_string(),
+                (Ty::Array, {
+                    let mut data = Vec::new();
+                    // 写入数组头部
+                    data.extend_from_slice(&(Ty::F32 as u32).to_le_bytes());
+                    data.extend_from_slice(&(3u64).to_le_bytes());
+                    // 写入数据
+                    data.extend_from_slice(&(0.0f32).to_le_bytes());
+                    data.extend_from_slice(&(-1.0f32).to_le_bytes());
+                    data.extend_from_slice(&(-2.0f32).to_le_bytes());
+                    data
+                }),
+            );
+            map.insert(
+                "tokenizer.ggml.token_type".to_string(),
+                (Ty::Array, {
+                    let mut data = Vec::new();
+                    // 写入数组头部
+                    data.extend_from_slice(&(Ty::I32 as u32).to_le_bytes());
+                    data.extend_from_slice(&(3u64).to_le_bytes());
+                    // 写入数据
+                    data.extend_from_slice(&(1i32).to_le_bytes());
+                    data.extend_from_slice(&(1i32).to_le_bytes());
+                    data.extend_from_slice(&(0i32).to_le_bytes());
+                    data
+                }),
+            );
+            map.insert(
+                "tokenizer.ggml.merges".to_string(),
+                (Ty::Array, encode_string_array(&["h e", "he llo"])),
+            );
+            map.insert(
+                "tokenizer.ggml.added_tokens".to_string(),
+                (Ty::Array, encode_string_array(&["<custom_token>"])),
+            );
+            map.insert(
+                "tokenizer.rwkv.world".to_string(),
+                (Ty::String, encode_string("world")),
             );
 
             // attention 相关字段
@@ -784,9 +849,133 @@ mod tests {
     }
 
     #[test]
+    fn test_get_usize_all_types() {
+        // 创建包含所有支持类型的测试数据
+        let mut map = HashMap::new();
+
+        // 添加所有可以转换为 usize 的类型
+        map.insert("u8_val".to_string(), (Ty::U8, vec![42]));
+        map.insert(
+            "u16_val".to_string(),
+            (Ty::U16, (1000u16).to_le_bytes().to_vec()),
+        );
+        map.insert(
+            "u32_val".to_string(),
+            (Ty::U32, (100000u32).to_le_bytes().to_vec()),
+        );
+        map.insert(
+            "u64_val".to_string(),
+            (Ty::U64, (5000000000u64).to_le_bytes().to_vec()),
+        );
+        map.insert("i8_val".to_string(), (Ty::I8, vec![42]));
+        map.insert(
+            "i16_val".to_string(),
+            (Ty::I16, (1000i16).to_le_bytes().to_vec()),
+        );
+        map.insert(
+            "i32_val".to_string(),
+            (Ty::I32, (100000i32).to_le_bytes().to_vec()),
+        );
+        map.insert(
+            "i64_val".to_string(),
+            (Ty::I64, (5000000000i64).to_le_bytes().to_vec()),
+        );
+        map.insert("bool_true".to_string(), (Ty::Bool, vec![1]));
+        map.insert("bool_false".to_string(), (Ty::Bool, vec![0]));
+
+        // 添加无法转换为 usize 的类型
+        map.insert(
+            "string_val".to_string(),
+            (Ty::String, encode_string("test")),
+        );
+        map.insert("f32_val".to_string(), (Ty::F32, encode_f32(3.14)));
+        map.insert(
+            "array_val".to_string(),
+            (Ty::Array, encode_string_array(&["test"])),
+        );
+
+        // 添加会导致溢出或负数的值
+        map.insert("negative_i8".to_string(), (Ty::I8, vec![0xFF])); // -1
+        map.insert(
+            "negative_i16".to_string(),
+            (Ty::I16, (-1000i16).to_le_bytes().to_vec()),
+        );
+        map.insert(
+            "negative_i32".to_string(),
+            (Ty::I32, (-100000i32).to_le_bytes().to_vec()),
+        );
+        map.insert(
+            "negative_i64".to_string(),
+            (Ty::I64, (-5000000000i64).to_le_bytes().to_vec()),
+        );
+
+        // 添加损坏的值
+        map.insert("corrupt_u32".to_string(), (Ty::U32, vec![1, 2])); // 长度不足的数据
+
+        let meta_map = TestMetaMap { data: map };
+
+        // 测试正常转换情况
+        assert_eq!(meta_map.get_usize("u8_val").unwrap(), 42);
+        assert_eq!(meta_map.get_usize("u16_val").unwrap(), 1000);
+        assert_eq!(meta_map.get_usize("u32_val").unwrap(), 100000);
+        assert_eq!(meta_map.get_usize("u64_val").unwrap(), 5000000000);
+        assert_eq!(meta_map.get_usize("i8_val").unwrap(), 42);
+        assert_eq!(meta_map.get_usize("i16_val").unwrap(), 1000);
+        assert_eq!(meta_map.get_usize("i32_val").unwrap(), 100000);
+        assert_eq!(meta_map.get_usize("i64_val").unwrap(), 5000000000);
+        assert_eq!(meta_map.get_usize("bool_true").unwrap(), 1);
+        assert_eq!(meta_map.get_usize("bool_false").unwrap(), 0);
+
+        // 测试类型不匹配
+        assert!(matches!(
+            meta_map.get_usize("string_val").unwrap_err(),
+            GGufMetaError::TypeMismatch(Ty::String)
+        ));
+        assert!(matches!(
+            meta_map.get_usize("f32_val").unwrap_err(),
+            GGufMetaError::TypeMismatch(Ty::F32)
+        ));
+        assert!(matches!(
+            meta_map.get_usize("array_val").unwrap_err(),
+            GGufMetaError::TypeMismatch(Ty::Array)
+        ));
+
+        // 测试负数值
+        assert!(matches!(
+            meta_map.get_usize("negative_i8").unwrap_err(),
+            GGufMetaError::OutOfRange
+        ));
+        assert!(matches!(
+            meta_map.get_usize("negative_i16").unwrap_err(),
+            GGufMetaError::OutOfRange
+        ));
+        assert!(matches!(
+            meta_map.get_usize("negative_i32").unwrap_err(),
+            GGufMetaError::OutOfRange
+        ));
+        assert!(matches!(
+            meta_map.get_usize("negative_i64").unwrap_err(),
+            GGufMetaError::OutOfRange
+        ));
+
+        // 测试损坏的值
+        assert!(matches!(
+            meta_map.get_usize("corrupt_u32").unwrap_err(),
+            GGufMetaError::Read(_)
+        ));
+
+        // 测试不存在的值
+        assert!(matches!(
+            meta_map.get_usize("non_existent").unwrap_err(),
+            GGufMetaError::NotExist
+        ));
+    }
+
+    #[test]
     fn test_general_fields() {
         let meta_map = TestMetaMap::new();
 
+        // 测试基础 general 字段
         assert_eq!(meta_map.general_architecture().unwrap(), "llama");
         assert_eq!(meta_map.general_name().unwrap(), "TestModel");
         assert_eq!(meta_map.general_author().unwrap(), "Test Author");
@@ -796,6 +985,297 @@ mod tests {
         assert_eq!(meta_map.general_alignment().unwrap(), 32);
         assert_eq!(meta_map.general_size_label().unwrap(), "7B");
         assert_eq!(meta_map.general_finetune().unwrap(), "chat");
+
+        // 测试默认 alignment 回退处理
+        let map = HashMap::new();
+        let meta_map_without_alignment = TestMetaMap { data: map };
+        assert_eq!(
+            meta_map_without_alignment.general_alignment().unwrap(),
+            DEFAULT_ALIGNMENT
+        );
+
+        // 测试所有可选的 general 字段缺失情况
+        assert!(meta_map.general_organization().is_err());
+        assert!(meta_map.general_basename().is_err());
+        assert!(meta_map.general_quantized_by().is_err());
+        assert!(meta_map.general_license().is_err());
+        assert!(meta_map.general_license_name().is_err());
+        assert!(meta_map.general_license_link().is_err());
+        assert!(meta_map.general_url().is_err());
+        assert!(meta_map.general_doi().is_err());
+        assert!(meta_map.general_uuid().is_err());
+        assert!(meta_map.general_repo_url().is_err());
+
+        // 测试数组类型字段
+        let tags: Vec<_> = meta_map
+            .general_tags()
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(tags, vec!["tag1", "tag2"]);
+
+        let languages: Vec<_> = meta_map
+            .general_languages()
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(languages, vec!["en", "zh"]);
+
+        // datasets 字段缺失的情况
+        assert!(meta_map.general_datasets().is_err());
+
+        // 测试 source 相关字段缺失情况
+        assert!(meta_map.general_source_url().is_err());
+        assert!(meta_map.general_source_doi().is_err());
+        assert!(meta_map.general_source_uuid().is_err());
+        assert!(meta_map.general_source_repo_url().is_err());
+
+        // 测试 base_model 相关字段缺失情况
+        assert!(meta_map.general_base_model_count().is_err());
+        assert!(meta_map.general_base_model_name(0).is_err());
+        assert!(meta_map.general_base_model_author(0).is_err());
+        assert!(meta_map.general_base_model_version(0).is_err());
+        assert!(meta_map.general_base_model_organization(0).is_err());
+        assert!(meta_map.general_base_model_url(0).is_err());
+        assert!(meta_map.general_base_model_doi(0).is_err());
+        assert!(meta_map.general_base_model_uuid(0).is_err());
+        assert!(meta_map.general_base_model_repo_url(0).is_err());
+    }
+
+    #[test]
+    fn test_general_additional_fields() {
+        // 创建一个包含所有 general 字段的测试数据
+        let mut map = HashMap::new();
+
+        // 基本 general 字段
+        map.insert(
+            "general.architecture".to_string(),
+            (Ty::String, encode_string("llama")),
+        );
+        map.insert(
+            "general.name".to_string(),
+            (Ty::String, encode_string("TestModel")),
+        );
+        map.insert(
+            "general.author".to_string(),
+            (Ty::String, encode_string("Test Author")),
+        );
+
+        // 添加额外的 general 字段
+        map.insert(
+            "general.organization".to_string(),
+            (Ty::String, encode_string("TestOrg")),
+        );
+        map.insert(
+            "general.basename".to_string(),
+            (Ty::String, encode_string("base_model")),
+        );
+        map.insert(
+            "general.quantized_by".to_string(),
+            (Ty::String, encode_string("quantizer")),
+        );
+        map.insert(
+            "general.license".to_string(),
+            (Ty::String, encode_string("MIT")),
+        );
+        map.insert(
+            "general.license.name".to_string(),
+            (Ty::String, encode_string("MIT License")),
+        );
+        map.insert(
+            "general.license.link".to_string(),
+            (Ty::String, encode_string("https://mit-license.org")),
+        );
+        map.insert(
+            "general.url".to_string(),
+            (Ty::String, encode_string("https://example.com/model")),
+        );
+        map.insert(
+            "general.doi".to_string(),
+            (Ty::String, encode_string("10.1234/test")),
+        );
+        map.insert(
+            "general.uuid".to_string(),
+            (
+                Ty::String,
+                encode_string("123e4567-e89b-12d3-a456-426614174000"),
+            ),
+        );
+        map.insert(
+            "general.repo_url".to_string(),
+            (Ty::String, encode_string("https://github.com/example/repo")),
+        );
+        map.insert("general.filetype".to_string(), (Ty::U32, encode_u32(0)));
+
+        // source 相关字段
+        map.insert(
+            "general.source.url".to_string(),
+            (Ty::String, encode_string("https://example.com/source")),
+        );
+        map.insert(
+            "general.source.doi".to_string(),
+            (Ty::String, encode_string("10.1234/source")),
+        );
+        map.insert(
+            "general.source.uuid".to_string(),
+            (
+                Ty::String,
+                encode_string("123e4567-e89b-12d3-a456-426614174001"),
+            ),
+        );
+        map.insert(
+            "general.source.repo_url".to_string(),
+            (
+                Ty::String,
+                encode_string("https://github.com/example/source"),
+            ),
+        );
+
+        // base_model 相关字段
+        map.insert(
+            "general.base_model.count".to_string(),
+            (Ty::U32, encode_u32(2)),
+        );
+        map.insert(
+            "general.base_model.0.name".to_string(),
+            (Ty::String, encode_string("Base Model 1")),
+        );
+        map.insert(
+            "general.base_model.0.author".to_string(),
+            (Ty::String, encode_string("Base Author 1")),
+        );
+        map.insert(
+            "general.base_model.0.version".to_string(),
+            (Ty::String, encode_string("1.0")),
+        );
+        map.insert(
+            "general.base_model.0.organization".to_string(),
+            (Ty::String, encode_string("Base Org 1")),
+        );
+        map.insert(
+            "general.base_model.0.url".to_string(),
+            (Ty::String, encode_string("https://example.com/base1")),
+        );
+        map.insert(
+            "general.base_model.0.doi".to_string(),
+            (Ty::String, encode_string("10.1234/base1")),
+        );
+        map.insert(
+            "general.base_model.0.uuid".to_string(),
+            (Ty::String, encode_string("uuid-base-1")),
+        );
+        map.insert(
+            "general.base_model.0.repo_url".to_string(),
+            (
+                Ty::String,
+                encode_string("https://github.com/example/base1"),
+            ),
+        );
+
+        map.insert(
+            "general.base_model.1.name".to_string(),
+            (Ty::String, encode_string("Base Model 2")),
+        );
+        map.insert(
+            "general.base_model.1.author".to_string(),
+            (Ty::String, encode_string("Base Author 2")),
+        );
+
+        // 数组类型字段
+        map.insert(
+            "general.datasets".to_string(),
+            (Ty::Array, encode_string_array(&["dataset1", "dataset2"])),
+        );
+
+        let meta_map = TestMetaMap { data: map };
+
+        // 测试附加 general 字段
+        assert_eq!(meta_map.general_organization().unwrap(), "TestOrg");
+        assert_eq!(meta_map.general_basename().unwrap(), "base_model");
+        assert_eq!(meta_map.general_quantized_by().unwrap(), "quantizer");
+        assert_eq!(meta_map.general_license().unwrap(), "MIT");
+        assert_eq!(meta_map.general_license_name().unwrap(), "MIT License");
+        assert_eq!(
+            meta_map.general_license_link().unwrap(),
+            "https://mit-license.org"
+        );
+        assert_eq!(meta_map.general_url().unwrap(), "https://example.com/model");
+        assert_eq!(meta_map.general_doi().unwrap(), "10.1234/test");
+        assert_eq!(
+            meta_map.general_uuid().unwrap(),
+            "123e4567-e89b-12d3-a456-426614174000"
+        );
+        assert_eq!(
+            meta_map.general_repo_url().unwrap(),
+            "https://github.com/example/repo"
+        );
+        assert_eq!(meta_map.general_filetype().unwrap(), GGufFileType::AllF32);
+
+        // 测试 source 相关字段
+        assert_eq!(
+            meta_map.general_source_url().unwrap(),
+            "https://example.com/source"
+        );
+        assert_eq!(meta_map.general_source_doi().unwrap(), "10.1234/source");
+        assert_eq!(
+            meta_map.general_source_uuid().unwrap(),
+            "123e4567-e89b-12d3-a456-426614174001"
+        );
+        assert_eq!(
+            meta_map.general_source_repo_url().unwrap(),
+            "https://github.com/example/source"
+        );
+
+        // 测试 base_model 相关字段
+        assert_eq!(meta_map.general_base_model_count().unwrap(), 2);
+        assert_eq!(meta_map.general_base_model_name(0).unwrap(), "Base Model 1");
+        assert_eq!(
+            meta_map.general_base_model_author(0).unwrap(),
+            "Base Author 1"
+        );
+        assert_eq!(meta_map.general_base_model_version(0).unwrap(), "1.0");
+        assert_eq!(
+            meta_map.general_base_model_organization(0).unwrap(),
+            "Base Org 1"
+        );
+        assert_eq!(
+            meta_map.general_base_model_url(0).unwrap(),
+            "https://example.com/base1"
+        );
+        assert_eq!(meta_map.general_base_model_doi(0).unwrap(), "10.1234/base1");
+        assert_eq!(meta_map.general_base_model_uuid(0).unwrap(), "uuid-base-1");
+        assert_eq!(
+            meta_map.general_base_model_repo_url(0).unwrap(),
+            "https://github.com/example/base1"
+        );
+
+        assert_eq!(meta_map.general_base_model_name(1).unwrap(), "Base Model 2");
+        assert_eq!(
+            meta_map.general_base_model_author(1).unwrap(),
+            "Base Author 2"
+        );
+        assert!(meta_map.general_base_model_version(1).is_err()); // 未设置的字段
+
+        // 测试 datasets 数组字段
+        let datasets: Vec<_> = meta_map
+            .general_datasets()
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(datasets, vec!["dataset1", "dataset2"]);
+    }
+
+    #[test]
+    fn test_filetype_errors() {
+        // 测试无效的 filetype 值
+        let mut map = HashMap::new();
+        map.insert("general.filetype".to_string(), (Ty::U32, encode_u32(999))); // 无效的值
+
+        let meta_map = TestMetaMap { data: map };
+
+        let result = meta_map.general_filetype();
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), GGufMetaError::OutOfRange));
     }
 
     #[test]
@@ -808,6 +1288,9 @@ mod tests {
         assert_eq!(meta_map.llm_block_count().unwrap(), 32);
         assert_eq!(meta_map.llm_feed_forward_length().unwrap(), 11008);
         assert_eq!(meta_map.llm_use_parallel_residual().unwrap(), true);
+        assert_eq!(meta_map.llm_tensor_data_layout().unwrap(), "row-major");
+        assert_eq!(meta_map.llm_expert_count().unwrap(), 0);
+        assert_eq!(meta_map.llm_expert_used_count().unwrap(), 0);
 
         // attention 相关字段测试
         assert_eq!(meta_map.llm_attention_head_count().unwrap(), 32);
@@ -843,6 +1326,7 @@ mod tests {
     fn test_tokenizer_fields() {
         let meta_map = TestMetaMap::new();
 
+        // 测试基本属性
         assert_eq!(meta_map.tokenizer_ggml_model().unwrap(), "llama");
         assert_eq!(meta_map.tokenizer_ggml_bos_token_id().unwrap(), 1);
         assert_eq!(meta_map.tokenizer_ggml_eos_token_id().unwrap(), 2);
@@ -850,6 +1334,72 @@ mod tests {
             meta_map.tokenizer_chat_template().unwrap(),
             "<|im_start|>user\n{prompt}<|im_end|>"
         );
+
+        // 测试可选的令牌 ID
+        assert_eq!(meta_map.tokenizer_ggml_unknown_token_id().unwrap(), 0);
+        assert_eq!(meta_map.tokenizer_ggml_separator_token_id().unwrap(), 3);
+        assert_eq!(meta_map.tokenizer_ggml_padding_token_id().unwrap(), 4);
+
+        // 测试 tokens 数组
+        let tokens = meta_map
+            .tokenizer_ggml_tokens()
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(tokens[0], "<bos>");
+        assert_eq!(tokens[1], "<eos>");
+        assert_eq!(tokens[2], "hello");
+
+        // 测试 scores 数组
+        let scores = meta_map
+            .tokenizer_ggml_scores()
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(scores.len(), 3);
+        assert!((scores[0] - 0.0).abs() < 1e-6);
+        assert!((scores[1] - (-1.0)).abs() < 1e-6);
+        assert!((scores[2] - (-2.0)).abs() < 1e-6);
+
+        // 测试 token_type 数组
+        let token_types = meta_map
+            .tokenizer_ggml_token_type()
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(token_types.len(), 3);
+        assert_eq!(token_types[0], 1);
+        assert_eq!(token_types[1], 1);
+        assert_eq!(token_types[2], 0);
+
+        // 测试 merges 数组
+        let merges = meta_map
+            .tokenizer_ggml_merges()
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(merges.len(), 2);
+        assert_eq!(merges[0], "h e");
+        assert_eq!(merges[1], "he llo");
+
+        // 测试 added_tokens 数组
+        let added_tokens = meta_map
+            .tokenizer_ggml_added_tokens()
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(added_tokens.len(), 1);
+        assert_eq!(added_tokens[0], "<custom_token>");
+
+        // 测试 RWKV 特定字段
+        assert_eq!(meta_map.tokenizer_rwkv_world().unwrap(), "world");
+
+        // 测试错误处理（试图访问一个不存在的字段）
+        assert!(matches!(
+            meta_map.get_str("tokenizer.non_existent").unwrap_err(),
+            GGufMetaError::NotExist
+        ));
     }
 
     #[test]
@@ -884,7 +1434,7 @@ mod tests {
             meta_map.general_url().unwrap_err(),
             GGufMetaError::NotExist
         ));
-        assert!(meta_map.llm_attention_head_count_kv().is_ok()); // 这个会回退到 head_count
+        assert!(meta_map.llm_attention_head_count_kv().is_ok());
     }
 
     #[test]
@@ -937,6 +1487,130 @@ mod tests {
         // 测试字段不存在的情况
         let result = meta_map.get_str("non_existent_field");
         assert!(result.is_err());
+        assert!(matches!(result, Err(GGufMetaError::NotExist)));
+    }
+
+    #[test]
+    fn test_get_functions_errors() {
+        // 创建一个包含多种类型的测试数据的 map
+        let mut map = HashMap::new();
+
+        // 添加不同类型的测试数据
+        map.insert(
+            "string_val".to_string(),
+            (Ty::String, encode_string("test")),
+        );
+        map.insert("u32_val".to_string(), (Ty::U32, encode_u32(42)));
+        map.insert("f32_val".to_string(), (Ty::F32, encode_f32(3.14)));
+        map.insert("bool_val".to_string(), (Ty::Bool, encode_bool(true)));
+        map.insert("corrupt_string".to_string(), (Ty::String, vec![1, 2, 3])); // 损坏的数据
+        map.insert("wrong_size_u32".to_string(), (Ty::U32, vec![1, 2])); // 长度不足的数据
+
+        // 创建数组类型测试数据
+        map.insert(
+            "string_array".to_string(),
+            (Ty::Array, encode_string_array(&["test1", "test2"])),
+        );
+        map.insert(
+            "f32_array".to_string(),
+            (Ty::Array, {
+                let mut data = Vec::new();
+                data.extend_from_slice(&(Ty::F32 as u32).to_le_bytes());
+                data.extend_from_slice(&(2u64).to_le_bytes());
+                data.extend_from_slice(&(1.0f32).to_le_bytes());
+                data.extend_from_slice(&(2.0f32).to_le_bytes());
+                data
+            }),
+        );
+        map.insert(
+            "i32_array".to_string(),
+            (Ty::Array, {
+                let mut data = Vec::new();
+                data.extend_from_slice(&(Ty::I32 as u32).to_le_bytes());
+                data.extend_from_slice(&(2u64).to_le_bytes());
+                data.extend_from_slice(&(10i32).to_le_bytes());
+                data.extend_from_slice(&(20i32).to_le_bytes());
+                data
+            }),
+        );
+        map.insert("corrupt_array".to_string(), (Ty::Array, vec![1, 2, 3])); // 损坏的数组
+
+        let meta_map = TestMetaMap { data: map };
+
+        // 测试类型不匹配错误
+        let result = meta_map.get_str("u32_val");
+        assert!(matches!(result, Err(GGufMetaError::TypeMismatch(Ty::U32))));
+
+        let result = meta_map.get_usize("string_val");
+        assert!(matches!(
+            result,
+            Err(GGufMetaError::TypeMismatch(Ty::String))
+        ));
+
+        let result = meta_map.get_f32("bool_val");
+        assert!(matches!(result, Err(GGufMetaError::TypeMismatch(Ty::Bool))));
+
+        let result = meta_map.get_bool("f32_val");
+        assert!(matches!(result, Err(GGufMetaError::TypeMismatch(Ty::F32))));
+
+        let result = meta_map.get_u32("string_val");
+        assert!(matches!(
+            result,
+            Err(GGufMetaError::TypeMismatch(Ty::String))
+        ));
+
+        // 测试数据损坏错误
+        let result = meta_map.get_str("corrupt_string");
+        assert!(matches!(result, Err(GGufMetaError::Read(_))));
+
+        let result = meta_map.get_u32("wrong_size_u32");
+        assert!(matches!(result, Err(GGufMetaError::Read(_))));
+
+        // 测试数组相关错误
+        let result = meta_map.get_str_arr("string_val");
+        assert!(matches!(
+            result,
+            Err(GGufMetaError::TypeMismatch(Ty::String))
+        ));
+
+        let result = meta_map.get_f32_arr("i32_array");
+        assert!(matches!(
+            result,
+            Err(GGufMetaError::ArrTypeMismatch(Ty::I32))
+        ));
+
+        let result = meta_map.get_i32_arr("f32_array");
+        assert!(matches!(
+            result,
+            Err(GGufMetaError::ArrTypeMismatch(Ty::F32))
+        ));
+
+        let result = meta_map.get_str_arr("corrupt_array");
+        assert!(matches!(result, Err(GGufMetaError::Read(_))));
+
+        // 测试字段不存在的情况
+        let result = meta_map.get_str("non_existent");
+        assert!(matches!(result, Err(GGufMetaError::NotExist)));
+
+        let result = meta_map.get_usize("non_existent");
+        assert!(matches!(result, Err(GGufMetaError::NotExist)));
+
+        let result = meta_map.get_f32("non_existent");
+        assert!(matches!(result, Err(GGufMetaError::NotExist)));
+
+        let result = meta_map.get_bool("non_existent");
+        assert!(matches!(result, Err(GGufMetaError::NotExist)));
+
+        let result = meta_map.get_u32("non_existent");
+        assert!(matches!(result, Err(GGufMetaError::NotExist)));
+
+        let result = meta_map.get_str_arr("non_existent");
+        assert!(matches!(result, Err(GGufMetaError::NotExist)));
+
+        let result = meta_map.get_f32_arr("non_existent");
+        assert!(matches!(result, Err(GGufMetaError::NotExist)));
+
+        let result = meta_map.get_i32_arr("non_existent");
         assert!(matches!(result, Err(GGufMetaError::NotExist)));
     }
 }
