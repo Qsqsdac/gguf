@@ -1,4 +1,4 @@
-﻿mod shard;
+mod shard;
 mod size_label;
 mod r#type;
 mod version;
@@ -218,8 +218,23 @@ fn test_name() {
 }
 
 #[test]
+fn test_name_types() {
+    let vocab_name = GGufFileName::try_from("tokenizer-vocab.gguf").unwrap();
+    assert!(matches!(vocab_name.type_, Type::Vocab));
+    assert_eq!(vocab_name.base_name, "tokenizer-vocab");
+    assert_eq!(vocab_name.to_string(), "tokenizer-vocab-v1.0-Vocab.gguf");
+
+    let lora_name = GGufFileName::try_from("adapter-LoRA.gguf").unwrap();
+    assert!(matches!(lora_name.type_, Type::LoRA));
+    assert_eq!(lora_name.base_name, "adapter-LoRA");
+    assert_eq!(lora_name.to_string(), "adapter-LoRA-v1.0-LoRA.gguf");
+}
+
+#[test]
 fn test_name_shard() {
     let name = GGufFileName::try_from("test-cases-00002-of-00005.gguf").unwrap();
+    let expected = Shard::new(2, 5);
+    assert_eq!(name.shard, expected);
     assert_eq!(name.shard.index, NonZero::new(2).unwrap());
     assert_eq!(name.shard.count, NonZero::new(5).unwrap());
     assert_eq!(name.shard_count(), 5);
@@ -242,4 +257,55 @@ fn test_name_into_single() {
     let name = name.into_single();
     assert_eq!(name.shard.index, NonZero::new(1).unwrap());
     assert_eq!(name.shard.count, NonZero::new(1).unwrap());
+}
+
+#[test]
+fn test_from_path() {
+    use std::path::PathBuf;
+
+    let path = PathBuf::from("/some/path/model-2x7.5B-F16.gguf");
+    let name = GGufFileName::try_from(path.as_path()).unwrap();
+    assert_eq!(name.base_name, "model");
+    assert!(name.size_label.is_some());
+    assert_eq!(name.size_label.as_ref().unwrap().to_string(), "2x7.5B");
+    assert_eq!(name.encoding, Some("F16".into()));
+
+    // 测试无效路径
+    let invalid_path = PathBuf::from("/some/path/model.bin");
+    assert!(GGufFileName::try_from(invalid_path.as_path()).is_err());
+}
+
+#[test]
+fn test_iterator_implementation() {
+    let name = GGufFileName::try_from("model-00001-of-00003.gguf").unwrap();
+
+    // 测试迭代整个分片序列
+    let mut iter = name.clone();
+    let first = iter.next().unwrap();
+    assert_eq!(first.shard.index, NonZero::new(1).unwrap());
+
+    let second = iter.next().unwrap();
+    assert_eq!(second.shard.index, NonZero::new(2).unwrap());
+
+    let third = iter.next().unwrap();
+    assert_eq!(third.shard.index, NonZero::new(3).unwrap());
+
+    assert!(iter.next().is_none());
+
+    // 测试 split_n 方法
+    let original = GGufFileName::try_from("model-v1.0-F16-00002-of-00003.gguf").unwrap();
+    let split = original.clone().split_n(5);
+
+    assert_eq!(split.shard.index, NonZero::new(1).unwrap());
+    assert_eq!(split.shard.count, NonZero::new(5).unwrap());
+
+    assert_eq!(split.base_name, original.base_name);
+    assert_eq!(split.version, original.version);
+    assert_eq!(split.encoding, original.encoding);
+    assert_eq!(split.type_, original.type_);
+
+    let all_shards: Vec<_> = split.collect();
+    assert_eq!(all_shards.len(), 5);
+    assert_eq!(all_shards[0].shard.index, NonZero::new(1).unwrap());
+    assert_eq!(all_shards[4].shard.index, NonZero::new(5).unwrap());
 }
