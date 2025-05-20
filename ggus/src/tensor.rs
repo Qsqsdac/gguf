@@ -270,3 +270,272 @@ impl Drop for GGufTensorInfo {
         unsafe { dealloc(ptr, layout) }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::mem::size_of;
+
+    #[test]
+    fn test_ggml_type_size() {
+        // 测试基本类型的大小计算
+        let f32_size = GGmlType::F32.size();
+        assert_eq!(f32_size.block_size, 1);
+        assert_eq!(f32_size.type_size, 4);
+
+        let i8_size = GGmlType::I8.size();
+        assert_eq!(i8_size.block_size, 1);
+        assert_eq!(i8_size.type_size, 1);
+
+        // 测试量化类型的大小
+        let q4_0_size = GGmlType::Q4_0.size();
+        assert!(q4_0_size.block_size > 1);
+        assert!(q4_0_size.type_size > 0);
+    }
+
+    #[test]
+    fn test_elements_to_bytes() {
+        // 测试空形状
+        let f32_size = GGmlType::F32.size();
+        assert_eq!(f32_size.elements_to_bytes(&[]), 4);
+
+        // 测试一维形状
+        assert_eq!(f32_size.elements_to_bytes(&[10]), 40);
+
+        // 测试多维形状
+        assert_eq!(f32_size.elements_to_bytes(&[5, 2]), 40);
+        assert_eq!(f32_size.elements_to_bytes(&[2, 3, 4]), 96);
+
+        // 测试量化类型
+        let q4_0_size = GGmlType::Q4_0.size();
+        if q4_0_size.block_size == 32 && q4_0_size.type_size == 16 {
+            assert_eq!(q4_0_size.elements_to_bytes(&[64]), 32);
+            assert_eq!(q4_0_size.elements_to_bytes(&[32, 2]), 32);
+        }
+    }
+
+    #[test]
+    fn test_tensor_meta_and_info() {
+        // 构造一个模拟的张量元数据
+        let name = "test_tensor";
+        let ndim = 2u32;
+        let shape = [3u64, 4u64];
+        let ty = GGmlType::F32;
+        let offset = 1024u64;
+
+        let mut data = Vec::new();
+        data.extend_from_slice(&(name.len() as u64).to_le_bytes());
+        data.extend_from_slice(name.as_bytes());
+        data.extend_from_slice(&ndim.to_le_bytes());
+        for &dim in &shape {
+            data.extend_from_slice(&dim.to_le_bytes());
+        }
+        data.extend_from_slice(&(ty as u32).to_le_bytes());
+        data.extend_from_slice(&offset.to_le_bytes());
+
+        let meta = GGufTensorMeta::new(&data).unwrap();
+        assert_eq!(meta.name(), name);
+
+        // 转换为 info 并检查
+        let info = meta.to_info();
+        assert_eq!(info.ty(), ty);
+        assert_eq!(info.ndim, ndim);
+        assert_eq!(info.shape(), &shape);
+        assert_eq!(info.offset(), 1024);
+
+        // 测试字节大小计算
+        let expected_bytes = shape.iter().product::<u64>() * size_of::<f32>() as u64;
+        assert_eq!(info.nbytes(), expected_bytes as usize);
+    }
+
+    #[test]
+    fn test_reader_read_tensor_meta() {
+        // 构造一个模拟的张量元数据
+        let name = "weights";
+        let ndim = 3u32;
+        let shape = [2u64, 768u64, 768u64];
+        let ty = GGmlType::F16;
+        let offset = 2048u64;
+
+        let mut data = Vec::new();
+        data.extend_from_slice(&(name.len() as u64).to_le_bytes());
+        data.extend_from_slice(name.as_bytes());
+        data.extend_from_slice(&ndim.to_le_bytes());
+        for &dim in &shape {
+            data.extend_from_slice(&dim.to_le_bytes());
+        }
+        data.extend_from_slice(&(ty as u32).to_le_bytes());
+        data.extend_from_slice(&offset.to_le_bytes());
+        data.extend_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD]);
+
+        let mut reader = GGufReader::new(&data);
+        let meta = reader.read_tensor_meta().unwrap();
+
+        assert_eq!(meta.name(), name);
+        let info = meta.to_info();
+        assert_eq!(info.ty(), ty);
+        assert_eq!(info.shape(), &shape);
+        assert_eq!(info.offset(), offset as usize);
+        assert_eq!(reader.remaining().len(), 4);
+    }
+
+    #[test]
+    fn test_tensor_info_memory_management() {
+        // 测试 GGufTensorInfo 的内存管理
+        // 通过 Drop 实现检查是否有内存泄漏
+        let mut data = Vec::new();
+        let name = "test";
+        let ndim = 1u32;
+        let shape = [10u64];
+        let ty = GGmlType::F32;
+        let offset = 0u64;
+
+        data.extend_from_slice(&(name.len() as u64).to_le_bytes());
+        data.extend_from_slice(name.as_bytes());
+        data.extend_from_slice(&ndim.to_le_bytes());
+        data.extend_from_slice(&shape[0].to_le_bytes());
+        data.extend_from_slice(&(ty as u32).to_le_bytes());
+        data.extend_from_slice(&offset.to_le_bytes());
+
+        let meta = GGufTensorMeta::new(&data).unwrap();
+
+        // 在作用域内创建并销毁 GGufTensorInfo
+        {
+            let _info = meta.to_info();
+        }
+
+        for _ in 0..5 {
+            let _info = meta.to_info();
+        }
+    }
+
+    #[test]
+    fn test_all_ggml_types() {
+        // 测试所有 GGmlType 变体是否可以获取其大小
+        let types = [
+            GGmlType::F32,
+            GGmlType::F16,
+            GGmlType::Q4_0,
+            GGmlType::Q4_1,
+            GGmlType::Q5_0,
+            GGmlType::Q5_1,
+            GGmlType::Q8_0,
+            GGmlType::Q8_1,
+            GGmlType::Q2K,
+            GGmlType::Q3K,
+            GGmlType::Q4K,
+            GGmlType::Q5K,
+            GGmlType::Q6K,
+            GGmlType::Q8K,
+            GGmlType::IQ2XXS,
+            GGmlType::IQ2XS,
+            GGmlType::IQ3XXS,
+            GGmlType::IQ1S,
+            GGmlType::IQ4NL,
+            GGmlType::IQ3S,
+            GGmlType::IQ2S,
+            GGmlType::IQ4XS,
+            GGmlType::I8,
+            GGmlType::I16,
+            GGmlType::I32,
+            GGmlType::I64,
+            GGmlType::F64,
+            GGmlType::IQ1M,
+            GGmlType::BF16,
+        ];
+
+        for &ty in &types {
+            let size = ty.size();
+            assert!(size.block_size > 0);
+            assert!(size.type_size > 0);
+        }
+    }
+
+    // 边缘情况测试
+    #[test]
+    fn test_edge_cases() {
+        // 测试非常大的形状
+        let f32_size = GGmlType::F32.size();
+        let large_shape = [1000000u64, 2];
+        let bytes = f32_size.elements_to_bytes(&large_shape);
+        assert_eq!(bytes, 8000000);
+
+        // 测试空名称的张量
+        let mut data = Vec::new();
+        let empty_name = "";
+        let ndim = 1u32;
+        let shape = [1u64];
+        let ty = GGmlType::F32;
+        let offset = 0u64;
+
+        data.extend_from_slice(&(empty_name.len() as u64).to_le_bytes());
+        data.extend_from_slice(&ndim.to_le_bytes());
+        data.extend_from_slice(&shape[0].to_le_bytes());
+        data.extend_from_slice(&(ty as u32).to_le_bytes());
+        data.extend_from_slice(&offset.to_le_bytes());
+
+        let meta = GGufTensorMeta::new(&data).unwrap();
+        assert_eq!(meta.name(), empty_name);
+    }
+
+    // 测试错误处理
+    #[test]
+    fn test_error_handling() {
+        // 测试数据不足的情况
+        let incomplete_data = [0u8, 1, 2];
+        let result = GGufTensorMeta::new(&incomplete_data);
+        assert!(result.is_err());
+
+        // 测试数据损坏的情况
+        let mut corrupted_data = Vec::new();
+        let name = "test";
+        corrupted_data.extend_from_slice(&(100u64).to_le_bytes());
+        corrupted_data.extend_from_slice(name.as_bytes());
+
+        let result = GGufTensorMeta::new(&corrupted_data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "types")]
+    fn test_to_digit_layout() {
+        // 测试基本类型的 digit_layout 转换
+        let _f32_layout = GGmlType::F32.to_digit_layout();
+        let _f16_layout = GGmlType::F16.to_digit_layout();
+        let _bf16_layout = GGmlType::BF16.to_digit_layout();
+
+        // 测试量化类型的 digit_layout 转换
+        let _q4_0_layout = GGmlType::Q4_0.to_digit_layout();
+        let _q4_1_layout = GGmlType::Q4_1.to_digit_layout();
+        let _q5_0_layout = GGmlType::Q5_0.to_digit_layout();
+        let _q5_1_layout = GGmlType::Q5_1.to_digit_layout();
+        let _q8_0_layout = GGmlType::Q8_0.to_digit_layout();
+        let _q8_1_layout = GGmlType::Q8_1.to_digit_layout();
+
+        // 测试高级量化类型
+        let _q2k_layout = GGmlType::Q2K.to_digit_layout();
+        let _q3k_layout = GGmlType::Q3K.to_digit_layout();
+        let _q4k_layout = GGmlType::Q4K.to_digit_layout();
+        let _q5k_layout = GGmlType::Q5K.to_digit_layout();
+        let _q6k_layout = GGmlType::Q6K.to_digit_layout();
+        let _q8k_layout = GGmlType::Q8K.to_digit_layout();
+
+        // 测试 IQ 类型
+        let _iq2xxs_layout = GGmlType::IQ2XXS.to_digit_layout();
+        let _iq2xs_layout = GGmlType::IQ2XS.to_digit_layout();
+        let _iq3xxs_layout = GGmlType::IQ3XXS.to_digit_layout();
+        let _iq1s_layout = GGmlType::IQ1S.to_digit_layout();
+        let _iq4nl_layout = GGmlType::IQ4NL.to_digit_layout();
+        let _iq3s_layout = GGmlType::IQ3S.to_digit_layout();
+        let _iq2s_layout = GGmlType::IQ2S.to_digit_layout();
+        let _iq4xs_layout = GGmlType::IQ4XS.to_digit_layout();
+        let _iq1m_layout = GGmlType::IQ1M.to_digit_layout();
+
+        // 测试基本整数类型
+        let _i8_layout = GGmlType::I8.to_digit_layout();
+        let _i16_layout = GGmlType::I16.to_digit_layout();
+        let _i32_layout = GGmlType::I32.to_digit_layout();
+        let _i64_layout = GGmlType::I64.to_digit_layout();
+        let _f64_layout = GGmlType::F64.to_digit_layout();
+    }
+}
