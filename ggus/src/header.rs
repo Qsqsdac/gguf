@@ -52,3 +52,29 @@ impl GGufFileHeader {
         from_utf8(&self.magic)
     }
 }
+
+#[test]
+fn test_read_header() {
+    let data: &[u8] = &[
+        // magic
+        b'G', b'G', b'U', b'F', // version (值为2，小端序)
+        2, 0, 0, 0, // tensor_count (值为5，小端序)
+        5, 0, 0, 0, 0, 0, 0, 0, // metadata_kv_count (值为10，小端序)
+        10, 0, 0, 0, 0, 0, 0, 0,
+    ];
+
+    let mut reader = GGufReader::new(data);
+    let header = reader.read_header().expect("Failed to read header");
+
+    // 验证 magic 字段
+    assert_eq!(header.magic(), Ok("GGUF"));
+    assert!(header.is_magic_correct());
+
+    // 验证版本和计数
+    assert_eq!(header.version, 2);
+    assert_eq!(header.tensor_count, 5);
+    assert_eq!(header.metadata_kv_count, 10);
+
+    // 验证字节序检测
+    assert!(header.is_native_endian());
+}
