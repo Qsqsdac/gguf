@@ -36,48 +36,21 @@ GGUF 是一种用于存储大型语言模型权重和元数据的文件格式，
 
 ## 使用示例
 
-读取 GGUF 文件：
-```rust,ignore
-use ggus::GGuf;
+下面的示例展示了创建并写入 GGUF 文件、读取 GGUF 文件头的过程：
+
+```rust
+use ggus::{
+    DataFuture, GGufFileHeader, GGufFileWriter, GGufMetaDataValueType, GGufTensorWriter, GGmlType,
+    GGufReader, GGufReadError,
+};
 use std::fs::File;
-use std::io::Read;
+use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 读取文件内容
-    let mut file = File::open("model.gguf")?;
-    let mut data = Vec::new();
-    file.read_to_end(&mut data)?;
-    
-    // 解析 GGUF 文件
-    let gguf = GGuf::new(&data)?;
-    
-    // 访问元数据
-    println!("架构: {}", gguf.general_architecture()?);
-    println!("模型名称: {}", gguf.general_name()?);
-    println!("上下文长度: {}", gguf.llm_context_length()?);
-    
-    // 访问张量信息
-    for (name, meta) in &gguf.tensors {
-        let info = meta.to_info();
-        println!("张量 {}: 形状 {:?}, 类型 {:?}", name, info.shape(), info.ty());
-    }
-    
-    Ok(())
-}
-```
-
-创建 GGUF 文件：
-```rust,ignore
-use ggus::write::{GGufFileWriter, FileHeader};
-use ggus::{GGmlType, GGufMetaDataValueType};
-use std::fs::File;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 创建文件
+    // ========== 写入部分 ==========
     let file = File::create("new_model.gguf")?;
-    let header = FileHeader::new();
-    
-    // 初始化写入器
+    let header = GGufFileHeader::new(3, 0, 0);
+
     let mut writer = GGufFileWriter::new(file, header)?;
     
     // 写入元数据
@@ -85,18 +58,61 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     writer.write_meta_kv("general.architecture", GGufMetaDataValueType::String, b"llama\0")?;
     writer.write_meta_kv("general.name", GGufMetaDataValueType::String, b"My Model\0")?;
     writer.write_meta_kv("llm.context_length", GGufMetaDataValueType::U32, &2048u32.to_le_bytes())?;
-    
-    // 完成元数据写入并准备写入张量
-    let mut tensor_writer = writer.finish(true)?;
-    
-    // 写入张量数据
+
+    // 写入张量
+    let mut tensor_writer = writer.finish::<Vec<u8>>(true);
     let shape = [4, 4];
-    let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0];
-    tensor_writer.write_tensor("weight", GGmlType::F32, &shape, &data)?;
-    
-    // 完成写入
+    let data_bytes = vec![
+        1u8, 0, 0, 0,   // f32 = 1.0 little endian
+        0, 0, 128, 63,  // f32 = 1.0
+        0, 0, 0, 64,    // f32 = 2.0
+        0, 0, 64, 64,   // f32 = 3.0
+        0, 0, 128, 64,  // f32 = 4.0
+        0, 0, 160, 64,  // f32 = 5.0
+        0, 0, 176, 64,  // f32 = 6.0
+        0, 0, 192, 64,  // f32 = 8.0
+        0, 0, 208, 64,  // f32 = 6.5 
+        0, 0, 224, 64,  // f32 = 7.0
+        0, 0, 240, 64,  // f32 = 7.5
+        0, 0, 0, 65,    // f32 = 8.0
+        0, 0, 16, 65,   // f32 = 9.0
+        0, 0, 32, 65,   // f32 = 10.0
+        0, 0, 48, 65,   // f32 = 11.0
+        0, 0, 64, 65,   // f32 = 12.0
+    ];
+
+    tensor_writer.write_tensor("weight", GGmlType::F32, &shape, data_bytes)?;
     tensor_writer.finish()?;
-    
+
+    // ========== 读取部分 ==========
+    let data = std::fs::read("new_model.gguf")?;
+    let file_name = std::path::Path::new("new_model.gguf").file_name().unwrap().to_str().unwrap();
+    println!("文件名: {file_name}\n");
+
+    let mut reader = GGufReader::new(&data);
+    let header = match reader.read_header() {
+        Ok(h) => h,
+        Err(e) => {
+            eprintln!("读取 GGUF 头失败: {:?}", e);
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "读取 GGUF 头失败",
+            )));
+        }
+    };
+
+    println!(
+        "字节序: {}",
+        if header.is_native_endian() {
+            "Native"
+        } else {
+            "Swapped"
+        }
+    );
+    println!("版本号: {}", header.version);
+    println!("元数据键值对数量: {}", header.metadata_kv_count);
+    println!("张量数量: {}", header.tensor_count);
+
     Ok(())
 }
 ```
