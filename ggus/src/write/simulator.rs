@@ -97,3 +97,26 @@ impl Write for NWrite {
         Ok(())
     }
 }
+
+#[test]
+fn test_simulator() {
+    // 测试默认构造
+    let mut sim = GGufFileSimulator::new();
+    sim.write_meta_kv("test_key", GGufMetaDataValueType::String, b"test_value");
+    sim.write_alignment(16);
+    let mut tensor_sim = sim.finish();
+    tensor_sim.write_tensor("test_tensor", GGmlType::F32, &[2, 2]);
+    assert_eq!(tensor_sim.written_bytes(), 160);
+
+    // 测试 default 构造函数
+    let sim_default = GGufFileSimulator::default();
+    assert_eq!(sim_default.alignment, DEFAULT_ALIGNMENT);
+
+    // 测试 with_alignment 构造函数
+    let sim2 = GGufFileSimulator::with_alignment(32);
+    assert_eq!(sim2.alignment, 32);
+
+    // 测试 flush 方法不会 panic
+    let mut writer = NWrite;
+    writer.flush().unwrap();
+}
