@@ -987,7 +987,7 @@ mod tests {
             "string_val".to_string(),
             (Ty::String, encode_string("test")),
         );
-        map.insert("f32_val".to_string(), (Ty::F32, encode_f32(3.14)));
+        map.insert("f32_val".to_string(), (Ty::F32, encode_f32(1.23)));
         map.insert(
             "array_val".to_string(),
             (Ty::Array, encode_string_array(&["test"])),
@@ -1386,7 +1386,7 @@ mod tests {
         assert_eq!(meta_map.llm_embedding_length().unwrap(), 4096);
         assert_eq!(meta_map.llm_block_count().unwrap(), 32);
         assert_eq!(meta_map.llm_feed_forward_length().unwrap(), 11008);
-        assert_eq!(meta_map.llm_use_parallel_residual().unwrap(), true);
+        assert!(meta_map.llm_use_parallel_residual().unwrap());
         assert_eq!(meta_map.llm_tensor_data_layout().unwrap(), "row-major");
         assert_eq!(meta_map.llm_expert_count().unwrap(), 0);
         assert_eq!(meta_map.llm_expert_used_count().unwrap(), 0);
@@ -1411,7 +1411,7 @@ mod tests {
             meta_map.llm_rope_scaling_original_context_length().unwrap(),
             2048
         );
-        assert_eq!(meta_map.llm_rope_scaling_finetuned().unwrap(), false);
+        assert!(!meta_map.llm_rope_scaling_finetuned().unwrap());
         assert_eq!(meta_map.llm_rope_scale_linear().unwrap(), 1.0);
 
         // ssm 相关字段测试
@@ -1600,7 +1600,7 @@ mod tests {
             (Ty::String, encode_string("test")),
         );
         map.insert("u32_val".to_string(), (Ty::U32, encode_u32(42)));
-        map.insert("f32_val".to_string(), (Ty::F32, encode_f32(3.14)));
+        map.insert("f32_val".to_string(), (Ty::F32, encode_f32(1.23)));
         map.insert("bool_val".to_string(), (Ty::Bool, encode_bool(true)));
         map.insert("corrupt_string".to_string(), (Ty::String, vec![1, 2, 3])); // 损坏的数据
         map.insert("wrong_size_u32".to_string(), (Ty::U32, vec![1, 2])); // 长度不足的数据

@@ -210,7 +210,7 @@ mod tests {
         // 添加填充以对齐到 32 字节边界
         let current_size = data.len();
         let padding_size = pad(current_size, 32);
-        data.extend(std::iter::repeat(0).take(padding_size));
+        data.extend(vec![0; padding_size]);
 
         // 添加张量数据
 
@@ -220,7 +220,7 @@ mod tests {
         }
 
         // tensor2 数据: 5 个 F16 值 (10 字节)
-        data.extend(std::iter::repeat(0).take(10));
+        data.extend([0u8; 10]);
 
         data
     }
