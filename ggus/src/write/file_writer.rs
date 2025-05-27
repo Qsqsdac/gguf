@@ -7,11 +7,13 @@ use std::{
     time::Instant,
 };
 
+/// 简化的 GGUF 文件写入器，负责将 GGUF 文件头和元数据写入到文件中
 pub struct GGufFileWriter<T: Write> {
     writer: GGufWriter<T>,
     alignment: usize,
 }
 
+/// 完整的 GGUF 张量写入器，负责将张量数据写入到 GGUF 文件中
 pub struct GGufTensorWriter<T: Write, U> {
     writer: GGufWriter<T>,
     alignment: usize,
@@ -20,11 +22,14 @@ pub struct GGufTensorWriter<T: Write, U> {
     write_data: bool,
 }
 
+/// Trait 用于获取数据的未来值，允许从不同类型中获取字节切片
 pub trait DataFuture {
+    /// 获取数据的字节切片
     fn get(&self) -> &[u8];
 }
 
 impl<T: Borrow<[u8]>> DataFuture for T {
+    /// 将借用的字节切片转换为 &[u8]
     #[inline]
     fn get(&self) -> &[u8] {
         self.borrow()
@@ -32,6 +37,7 @@ impl<T: Borrow<[u8]>> DataFuture for T {
 }
 
 impl<T: Write> GGufFileWriter<T> {
+    /// 创建一个新的 GGufFileWriter 实例，初始化 GGUF 文件头
     #[inline]
     pub fn new(writer: T, header: GGufFileHeader) -> Result<Self> {
         let mut writer = GGufWriter::new(writer);
@@ -42,6 +48,7 @@ impl<T: Write> GGufFileWriter<T> {
         })
     }
 
+    /// 使用指定的对齐值创建 GGufFileWriter 实例
     #[inline]
     pub fn with_alignment(writer: T, header: GGufFileHeader, alignment: usize) -> Result<Self> {
         let mut ans = Self::new(writer, header)?;
@@ -49,6 +56,7 @@ impl<T: Write> GGufFileWriter<T> {
         Ok(ans)
     }
 
+    /// 写入新的对齐值，并更新内部状态
     #[inline]
     pub fn write_alignment(&mut self, alignment: usize) -> Result<()> {
         self.writer.write_alignment(alignment)?;
@@ -56,6 +64,7 @@ impl<T: Write> GGufFileWriter<T> {
         Ok(())
     }
 
+    /// 写入元数据键值对，如果键为 "general.alignment"，则更新对齐值
     #[inline]
     pub fn write_meta_kv(
         &mut self,
@@ -69,6 +78,7 @@ impl<T: Write> GGufFileWriter<T> {
         Ok(())
     }
 
+    /// 完成元数据写入，并返回一个 GGufTensorWriter 实例
     #[inline]
     pub fn finish<U>(self, write_data: bool) -> GGufTensorWriter<T, U> {
         GGufTensorWriter {
@@ -82,6 +92,7 @@ impl<T: Write> GGufFileWriter<T> {
 }
 
 impl<T: Write, U: DataFuture> GGufTensorWriter<T, U> {
+    /// 写入张量数据
     pub fn write_tensor(&mut self, name: &str, ty: GGmlType, shape: &[u64], data: U) -> Result<()> {
         self.offset += pad(self.offset, self.alignment);
         self.writer
@@ -96,6 +107,7 @@ impl<T: Write, U: DataFuture> GGufTensorWriter<T, U> {
         Ok(())
     }
 
+    /// 完成张量写入，返回已写入的字节数
     pub fn finish(self) -> Result<usize> {
         let Self {
             mut writer,

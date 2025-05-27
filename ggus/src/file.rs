@@ -6,22 +6,36 @@ use indexmap::IndexMap;
 use log::{info, warn};
 use std::{error::Error, fmt};
 
+/// GGUF 文件的主要结构体，包含文件头、元数据键值对、张量元数据和实际数据。
 pub struct GGuf<'a> {
+    /// GGUF 文件头，包含版本、张量数量、元数据键值对数量等信息。
     pub header: GGufFileHeader,
+    /// 对齐方式，通常为 32 或 64 字节。
     pub alignment: usize,
+    /// 元数据键值对，使用 `IndexMap` 存储，键为字符串切片，值为 `GGufMetaKV`。
     pub meta_kvs: IndexMap<&'a str, GGufMetaKV<'a>>,
+    /// 张量元数据，使用 `IndexMap` 存储，键为张量名称，值为 `GGufTensorMeta`。
     pub tensors: IndexMap<&'a str, GGufTensorMeta<'a>>,
+    /// 实际数据部分，包含所有张量的数据。
     pub data: &'a [u8],
 }
 
+/// GGUF 文件解析时可能遇到的错误类型。
 #[derive(Debug)]
 pub enum GGufError {
+    /// 读取 GGUF 文件时发生的错误。
     Reading(GGufReadError),
+    /// GGUF 文件的魔术值不匹配，表示文件格式不正确。
     MagicMismatch,
+    /// GGUF 文件的字节序不支持，当前实现仅支持本地字节序。
     EndianNotSupport,
+    /// GGUF 文件的版本不支持，当前实现仅支持版本 3。
     VersionNotSupport,
+    /// 元数据键值对中的对齐类型与预期不匹配。
     AlignmentTypeMismatch(GGufMetaDataValueType),
+    /// 元数据键重复，GGUF 文件中不允许有重复的元数据键。
     DuplicateMetaKey(String),
+    /// 张量名称重复，GGUF 文件中不允许有重复的张量名称。
     DuplicateTensorName(String),
 }
 
@@ -48,6 +62,7 @@ impl GGufMetaMap for GGuf<'_> {
 }
 
 impl<'a> GGuf<'a> {
+    /// 创建一个新的 `GGuf` 实例，解析给定的 GGUF 数据。
     pub fn new(data: &'a [u8]) -> Result<Self, GGufError> {
         use GGufError::*;
 

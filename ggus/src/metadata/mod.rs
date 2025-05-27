@@ -1,12 +1,17 @@
 //! See <https://github.com/ggerganov/ggml/blob/master/docs/gguf.md#standardized-key-value-pairs>.
 
+#![allow(missing_docs)]
+// ! This module provides types and constants for GGUF metadata handling.
+
 mod collection;
 mod meta_kv;
 
 pub use collection::{GGufMetaError, GGufMetaMap, GGufMetaMapExt};
 pub use meta_kv::{GGufMetaKV, GGufMetaValueArray};
 
+/// Default alignment for GGUF files.
 pub const DEFAULT_ALIGNMENT: usize = 32;
+/// The key for the general alignment metadata in GGUF files.
 pub const GENERAL_ALIGNMENT: &str = "general.alignment";
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -45,7 +50,9 @@ pub enum GGufMetaDataValueType {
     F64 = 12,
 }
 
+/// Methods for GGufMetaDataValueType to get the name of the type.
 impl GGufMetaDataValueType {
+    /// Returns the name of the type as a static string.
     pub fn name(&self) -> &'static str {
         match self {
             Self::U8 => "u8",
@@ -65,6 +72,7 @@ impl GGufMetaDataValueType {
     }
 }
 
+/// GGUF file types, indicating the primary data type used in the file.
 #[derive(num_enum::TryFromPrimitive, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[repr(u32)]
 pub enum GGufFileType {
@@ -109,6 +117,7 @@ pub enum GGufFileType {
     // GUESSED = 1024  # not specified in the model file
 }
 
+/// GGML token types used in GGUF files.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[repr(i32)]
 pub enum GGmlTokenType {
