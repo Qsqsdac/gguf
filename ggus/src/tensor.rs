@@ -8,7 +8,7 @@ use std::{
     slice::from_raw_parts,
 };
 
-/// GGML tencor 数据类型
+/// GGML tencor 数据类型。
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[repr(u32)]
 pub enum GGmlType {
@@ -50,17 +50,17 @@ pub enum GGmlType {
     Q4_0_8_8 = 33,
 }
 
-/// GGML 数据类型的大小和块大小
+/// GGML 数据类型的大小和块大小。
 #[derive(Clone, Copy, Debug)]
 pub struct GGmlTypeSize {
-    /// 每个数据块的大小
+    /// 每个数据块的大小。
     pub block_size: u32,
-    /// 每个数据类型的大小（以字节为单位）
+    /// 每个数据类型的大小（以字节为单位）。
     pub type_size: u32,
 }
 
 impl GGmlTypeSize {
-    /// 创建一个新的 GGmlTypeSize 实例，表示单个数据元素的大小
+    /// 创建一个新的 [`GGmlTypeSize`] 实例，表示单个数据元素的大小。
     #[inline]
     const fn unit<T>() -> Self {
         Self {
@@ -69,7 +69,7 @@ impl GGmlTypeSize {
         }
     }
 
-    /// 创建一个新的 GGmlTypeSize 实例，表示量化数据块的大小
+    /// 创建一个新的 [`GGmlTypeSize`] 实例，表示量化数据块的大小。
     #[inline]
     const fn quants<T: ggml_quants::DataBlock>() -> Self {
         Self {
@@ -78,7 +78,7 @@ impl GGmlTypeSize {
         }
     }
 
-    /// 计算给定形状的元素总数转换为字节数
+    /// 计算给定形状的元素总数转换为字节数。
     #[inline]
     pub fn elements_to_bytes(&self, shape: &[u64]) -> usize {
         let blk = self.block_size as u64;
@@ -97,7 +97,7 @@ impl GGmlTypeSize {
 }
 
 impl GGmlType {
-    /// 获取 GGML 数据类型的大小
+    /// 获取 GGML 数据类型的大小。
     #[rustfmt::skip]
     pub const fn size(self) -> GGmlTypeSize {
         macro_rules! size {
@@ -143,7 +143,7 @@ impl GGmlType {
         }
     }
 
-    /// 将 GGmlType 映射到具体的 digit_layout 实例
+    /// 将 [`GGmlType`] 映射到具体的 digit_layout 实例。
     #[cfg(feature = "types")]
     pub const fn to_digit_layout(self) -> ggml_quants::digit_layout::DigitLayout {
         use ggml_quants::{digit_layout::types as primitive, types as quantized};
@@ -184,12 +184,12 @@ impl GGmlType {
     }
 }
 
-/// GGufTensorMeta 结构体表示 GGUF 文件中的张量元数据
+/// [`GGufTensorMeta`] 结构体表示 GGUF 文件中的张量元数据。
 #[repr(transparent)]
 pub struct GGufTensorMeta<'a>(&'a [u8]);
 
 impl<'a> GGufReader<'a> {
-    /// 读取 GGUF 文件中的张量元数据
+    /// 读取 GGUF 文件中的张量元数据。
     pub fn read_tensor_meta(&mut self) -> Result<GGufTensorMeta<'a>, GGufReadError> {
         let data = self.remaining();
 
@@ -205,7 +205,7 @@ impl<'a> GGufReader<'a> {
 }
 
 impl<'a> GGufTensorMeta<'a> {
-    /// 创建一个新的 GGufTensorMeta 实例，不检查数据合法性
+    /// 创建一个新的 [`GGufTensorMeta`] 实例，不检查数据合法性。
     ///
     /// # Safety
     ///
@@ -215,20 +215,20 @@ impl<'a> GGufTensorMeta<'a> {
         Self(data)
     }
 
-    /// 创建一个新的 GGufTensorMeta 实例
+    /// 创建一个新的 [`GGufTensorMeta`] 实例。
     #[inline]
     pub fn new(data: &'a [u8]) -> Result<Self, GGufReadError> {
         GGufReader::new(data).read_tensor_meta()
     }
 
-    /// 获取张量元数据的名称
+    /// 获取张量元数据的名称。
     #[inline]
     pub fn name(&self) -> &'a str {
         let mut reader = GGufReader::new(self.0);
         unsafe { reader.read_str_unchecked() }
     }
 
-    /// 将 GGufTensorMeta 转换为 GGufTensorInfo
+    /// 将 [`GGufTensorMeta`] 转换为 [`GGufTensorInfo`]。
     #[inline]
     pub fn to_info(&self) -> GGufTensorInfo {
         let mut reader = GGufReader::new(self.0);
@@ -251,38 +251,38 @@ impl<'a> GGufTensorMeta<'a> {
     }
 }
 
-/// GGufTensorInfo 结构体表示 GGUF 文件中的张量信息
+/// [`GGufTensorInfo`] 结构体表示 GGUF 文件中的张量信息。
 pub struct GGufTensorInfo {
-    /// 张量的数据类型
+    /// 张量的数据类型。
     ty: GGmlType,
-    /// 张量的维度数量
+    /// 张量的维度数量。
     ndim: u32,
-    /// 张量的形状，存储为指向 u64 的非空指针
+    /// 张量的形状，存储为指向 u64 的非空指针。
     shape: NonNull<u64>,
-    /// 张量在文件中的偏移量
+    /// 张量在文件中的偏移量。
     offset: u64,
 }
 
 impl GGufTensorInfo {
-    /// 获取张量数据类型
+    /// 获取张量数据类型。
     #[inline]
     pub const fn ty(&self) -> GGmlType {
         self.ty
     }
 
-    /// 获取张量形状
+    /// 获取张量形状。
     #[inline]
     pub const fn shape(&self) -> &[u64] {
         unsafe { from_raw_parts(self.shape.as_ptr(), self.ndim as _) }
     }
 
-    /// 获取张量偏移量
+    /// 获取张量偏移量。
     #[inline]
     pub const fn offset(&self) -> usize {
         self.offset as _
     }
 
-    /// 获取张量大小，以字节为单位
+    /// 获取张量大小，以字节为单位。
     #[inline]
     pub fn nbytes(&self) -> usize {
         self.ty.size().elements_to_bytes(self.shape())

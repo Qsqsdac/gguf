@@ -12,9 +12,9 @@ pub struct GGuf<'a> {
     pub header: GGufFileHeader,
     /// 对齐方式，通常为 32 或 64 字节。
     pub alignment: usize,
-    /// 元数据键值对，使用 `IndexMap` 存储，键为字符串切片，值为 `GGufMetaKV`。
+    /// 元数据键值对，使用 [`IndexMap`] 在提供高效查找的同时保持键值对的逻辑顺序。
     pub meta_kvs: IndexMap<&'a str, GGufMetaKV<'a>>,
-    /// 张量元数据，使用 `IndexMap` 存储，键为张量名称，值为 `GGufTensorMeta`。
+    /// 张量元数据，存储的 [`GGufTensorMeta`] 类型是 GGuf 文件中张量元信息原始数据的直接映射，以避免解析不需要的张量带来的开销。
     pub tensors: IndexMap<&'a str, GGufTensorMeta<'a>>,
     /// 实际数据部分，包含所有张量的数据。
     pub data: &'a [u8],
@@ -27,7 +27,7 @@ pub enum GGufError {
     Reading(GGufReadError),
     /// GGUF 文件的魔术值不匹配，表示文件格式不正确。
     MagicMismatch,
-    /// GGUF 文件的字节序不支持，当前实现仅支持本地字节序。
+    /// GGUF 文件的字节序不支持，当前实现仅支持本机字节序。
     EndianNotSupport,
     /// GGUF 文件的版本不支持，当前实现仅支持版本 3。
     VersionNotSupport,
@@ -62,7 +62,7 @@ impl GGufMetaMap for GGuf<'_> {
 }
 
 impl<'a> GGuf<'a> {
-    /// 创建一个新的 `GGuf` 实例，解析给定的 GGUF 数据。
+    /// 创建一个新的 [`GGuf`] 实例，解析给定的 GGUF 数据。
     pub fn new(data: &'a [u8]) -> Result<Self, GGufError> {
         use GGufError::*;
 

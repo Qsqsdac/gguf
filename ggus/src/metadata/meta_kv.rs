@@ -2,13 +2,13 @@ use super::GGufMetaDataValueType as Ty;
 use crate::{GGufReadError, GGufReader};
 use std::marker::PhantomData;
 
-/// GGufMetaKV 结构体表示 GGUF 文件中的元数据键值对
+/// [`GGufMetaKV`] 结构体表示 GGUF 文件中的元数据键值对。
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct GGufMetaKV<'a>(&'a [u8]);
 
 impl<'a> GGufReader<'a> {
-    /// 读取元数据键值对
+    /// 读取元数据键值对。
     pub fn read_meta_kv(&mut self) -> Result<GGufMetaKV<'a>, GGufReadError> {
         let data = self.remaining();
 
@@ -20,7 +20,7 @@ impl<'a> GGufReader<'a> {
         Ok(unsafe { GGufMetaKV::new_unchecked(data) })
     }
 
-    /// 读取元数据值
+    /// 读取元数据值。
     fn read_meta_value(&mut self, ty: Ty, len: usize) -> Result<&mut Self, GGufReadError> {
         match ty {
             Ty::U8 => self.skip::<u8>(len),
@@ -54,53 +54,48 @@ impl<'a> GGufReader<'a> {
 }
 
 impl<'a> GGufMetaKV<'a> {
-    /// 创建一个新的 GGufMetaKV 实例，不检查数据合法性
+    /// 创建一个新的 [`GGufMetaKV`] 实例，不检查数据合法性。
     ///
     /// # Safety
     ///
-    /// 调用此方法时必须确保 `data` 是有效的 GGUF 元数据键值对格式，
+    /// 调用此方法时必须确保 `data` 是有效的 GGUF 元数据键值对格式。
     #[inline]
     pub const unsafe fn new_unchecked(data: &'a [u8]) -> Self {
         Self(data)
     }
 
-    /// 创建一个新的 GGufMetaKV 实例
+    /// 创建一个新的 [`GGufMetaKV`] 实例。
     #[inline]
     pub fn new(data: &'a [u8]) -> Result<Self, GGufReadError> {
         GGufReader::new(data).read_meta_kv()
     }
 
-    /// 获取元数据键值对的键
+    /// 获取元数据键值对的键。
     #[inline]
     pub fn key(&self) -> &'a str {
         let mut reader = self.reader();
         unsafe { reader.read_str_unchecked() }
     }
 
-    /// 获取元数据键值对的类型
+    /// 获取元数据键值对的类型。
     #[inline]
     pub fn ty(&self) -> Ty {
         self.reader().skip_str().unwrap().read().unwrap()
     }
 
-    /// 获取元数据键值对的值字节
+    /// 获取元数据键值对的值字节。
     pub fn value_bytes(&self) -> &'a [u8] {
-        self.reader()
-            .skip_str()
-            .unwrap()
-            .skip::<Ty>(1)
-            .unwrap()
-            .remaining()
+        self.value_reader().remaining()
     }
 
-    /// 获取元数据键值对的值读取器
+    /// 获取元数据键值对的值读取器。
     pub fn value_reader(&self) -> GGufReader<'a> {
         let mut reader = self.reader();
         reader.skip_str().unwrap().skip::<Ty>(1).unwrap();
         reader
     }
 
-    /// 读取整数类型的值
+    /// 读取整数类型的值。
     pub fn read_integer(&self) -> isize {
         let mut reader = self.reader();
         let ty = reader.skip_str().unwrap().read::<Ty>().unwrap();
@@ -117,7 +112,7 @@ impl<'a> GGufMetaKV<'a> {
         }
     }
 
-    /// 读取无符号整数类型的值
+    /// 读取无符号整数类型的值。
     pub fn read_unsigned(&self) -> usize {
         let mut reader = self.reader();
         let ty = reader.skip_str().unwrap().read::<Ty>().unwrap();
@@ -140,7 +135,7 @@ impl<'a> GGufMetaKV<'a> {
     }
 }
 
-/// GGufMetaValueArray 结构体表示 GGUF 文件中元数据值的数组
+/// [`GGufMetaValueArray`] 结构体表示 GGUF 文件中元数据值的数组。
 pub struct GGufMetaValueArray<'a, T: ?Sized> {
     reader: GGufReader<'a>,
     len: usize,
@@ -148,8 +143,8 @@ pub struct GGufMetaValueArray<'a, T: ?Sized> {
 }
 
 impl<'a, T: ?Sized> GGufMetaValueArray<'a, T> {
-    /// 创建一个新的 GGufMetaValueArray 实例
-    pub fn new(reader: GGufReader<'a>, len: usize) -> Self {
+    /// 创建一个新的 [`GGufMetaValueArray`] 实例。
+    pub const fn new(reader: GGufReader<'a>, len: usize) -> Self {
         Self {
             reader,
             len,
@@ -157,13 +152,13 @@ impl<'a, T: ?Sized> GGufMetaValueArray<'a, T> {
         }
     }
 
-    /// 检查数组是否为空
+    /// 检查数组是否为空。
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
 
-    /// 获取数组的长度
+    /// 获取数组的长度。
     #[inline]
     pub const fn len(&self) -> usize {
         self.len

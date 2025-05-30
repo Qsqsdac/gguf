@@ -9,22 +9,22 @@ use std::{borrow::Cow, fmt, num::NonZero, path::Path};
 use r#type::Type;
 use version::Version;
 
-/// GGufFileName 定义 GGUF 文件名的结构
+/// [`GGufFileName`] 定义 GGUF 文件名的结构。
 #[derive(Clone, Debug)]
 pub struct GGufFileName<'a> {
-    /// 基础名称，通常是模型的名称
+    /// 基础名称，通常是模型的名称。
     pub base_name: Cow<'a, str>,
-    /// 可选的大小标签，表示模型的大小
+    /// 可选的大小标签，表示模型的大小。
     pub size_label: Option<SizeLabel>,
-    /// 可选的微调信息，表示模型的微调版本
+    /// 可选的微调信息，表示模型的微调版本。
     pub fine_tune: Cow<'a, str>,
-    /// 版本信息，表示 GGUF 文件的版本
+    /// 版本信息，表示 GGUF 文件的版本。
     pub version: Version,
-    /// 可选的编码信息，表示模型的编码格式
+    /// 可选的编码信息，表示模型的编码格式。
     pub encoding: Option<Cow<'a, str>>,
-    /// 模型类型，表示 GGUF 文件的类型（如 LoRA、Vocab 等）
+    /// 模型类型，表示 GGUF 文件的类型（如 LoRA、Vocab 等）。
     pub type_: Type,
-    /// 分片信息，表示 GGUF 文件的分片索引和总数
+    /// 分片信息，表示 GGUF 文件的分片索引和总数。
     pub shard: Shard,
 }
 
@@ -44,7 +44,7 @@ mod pattern {
     pub static SHARD: LazyLock<Regex> = LazyLock::new(|| Regex::new(SHARD_).unwrap());
 }
 
-/// 错误类型，表示 GGUF 文件名不符合预期的扩展名
+/// 错误类型，表示 GGUF 文件名不符合预期的扩展名。
 #[derive(Debug)]
 pub struct GGufExtNotMatch;
 
@@ -142,13 +142,13 @@ impl<'a> TryFrom<&'a Path> for GGufFileName<'a> {
 }
 
 impl GGufFileName<'_> {
-    /// 计算 GGUF 文件名的分片数量
+    /// 计算 GGUF 文件名的分片数量。
     #[inline]
     pub fn shard_count(&self) -> usize {
         self.shard.count.get() as _
     }
 
-    /// 将 GGUF 文件名转换为单个分片的名称
+    /// 将 GGUF 文件名转换为单个分片的名称。
     #[inline]
     pub fn into_single(self) -> Self {
         Self {
@@ -157,7 +157,7 @@ impl GGufFileName<'_> {
         }
     }
 
-    /// 将 GGUF 文件名转换为迭代器，迭代所有分片
+    /// 将 GGUF 文件名转换为迭代器，迭代所有分片。
     #[inline]
     pub fn iter_all(self) -> Self {
         Self {
@@ -169,7 +169,7 @@ impl GGufFileName<'_> {
         }
     }
 
-    /// 将 GGUF 文件名分割为 n 个分片
+    /// 将 GGUF 文件名分割为 n 个分片。
     #[inline]
     pub fn split_n(self, n: usize) -> Self {
         Self {

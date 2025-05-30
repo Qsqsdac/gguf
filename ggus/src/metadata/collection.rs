@@ -1,33 +1,33 @@
 use super::{DEFAULT_ALIGNMENT, GGufFileType, GGufMetaDataValueType as Ty, GGufMetaValueArray};
 use crate::{GGufReadError, GGufReader};
 
-/// GGufMetaMap trait 定义了获取 GGUF 元数据键值对的接口
+/// [`GGufMetaMap`] trait 定义了获取 GGUF 元数据键值对的接口。
 pub trait GGufMetaMap {
-    /// 获取元数据键值对
+    /// 获取元数据键值对。
     fn get(&self, key: &str) -> Option<(Ty, &[u8])>;
 }
 
-/// GGufMetaError 枚举定义了 GGUF 元数据键值对获取时可能出现的错误
+/// [`GGufMetaError`] 枚举定义了 GGUF 元数据键值对获取时可能出现的错误。
 #[derive(Debug)]
 pub enum GGufMetaError {
-    /// 元数据键值对不存在
+    /// 元数据键值对不存在。
     NotExist,
-    /// 元数据类型不匹配
+    /// 元数据类型不匹配。
     TypeMismatch(Ty),
-    /// 元数据数组类型不匹配
+    /// 元数据数组类型不匹配。
     ArrTypeMismatch(Ty),
-    /// 元数据超出范围
+    /// 元数据超出范围。
     OutOfRange,
-    /// 读取元数据时发生错误
+    /// 读取元数据时发生错误。
     Read(GGufReadError),
 }
 
-/// GGufMetaMapExt trait 扩展了 GGufMetaMap，提供了各种类型的元数据键值对获取函数
+/// [`GGufMetaMapExt`] trait 扩展了 [`GGufMetaMap`]，提供了各种类型的元数据键值对获取函数。
 pub trait GGufMetaMapExt: GGufMetaMap {
-    /// 各类元数据键值对获取函数
+    /// 各类元数据键值对获取函数。
     ///
     /// # 不同数据类型元数据键值对获取函数
-    /// 获取字符串类型的元数据键值对
+    /// 获取字符串类型的元数据键值对。
     fn get_str(&self, key: &str) -> Result<&str, GGufMetaError> {
         let (ty, val) = self.get(key).ok_or(GGufMetaError::NotExist)?;
         match ty {
@@ -36,7 +36,7 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取 usize 类型的元数据键值对
+    /// 获取 usize 类型的元数据键值对。
     fn get_usize(&self, key: &str) -> Result<usize, GGufMetaError> {
         let (ty, val) = self.get(key).ok_or(GGufMetaError::NotExist)?;
 
@@ -70,7 +70,7 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         Ok(ans)
     }
 
-    /// 获取 f32 类型的元数据键值对
+    /// 获取 f32 类型的元数据键值对。
     fn get_f32(&self, key: &str) -> Result<f32, GGufMetaError> {
         let (ty, val) = self.get(key).ok_or(GGufMetaError::NotExist)?;
         if ty == Ty::F32 {
@@ -80,7 +80,7 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取 u32 类型的元数据键值对
+    /// 获取 u32 类型的元数据键值对。
     fn get_u32(&self, key: &str) -> Result<u32, GGufMetaError> {
         let (ty, val) = self.get(key).ok_or(GGufMetaError::NotExist)?;
         if ty == Ty::U32 {
@@ -90,7 +90,7 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取 bool 类型的元数据键值对
+    /// 获取 bool 类型的元数据键值对。
     fn get_bool(&self, key: &str) -> Result<bool, GGufMetaError> {
         let (ty, val) = self.get(key).ok_or(GGufMetaError::NotExist)?;
         if ty == Ty::Bool {
@@ -102,7 +102,7 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取字符串数组类型的元数据键值对
+    /// 获取字符串数组类型的元数据键值对。
     fn get_str_arr(&self, key: &str) -> Result<GGufMetaValueArray<str>, GGufMetaError> {
         let (ty, val) = self.get(key).ok_or(GGufMetaError::NotExist)?;
         let mut reader = GGufReader::new(val);
@@ -117,7 +117,7 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取 i32 数组类型的元数据键值对
+    /// 获取 i32 数组类型的元数据键值对。
     fn get_i32_arr(&self, key: &str) -> Result<GGufMetaValueArray<i32>, GGufMetaError> {
         let (ty, val) = self.get(key).ok_or(GGufMetaError::NotExist)?;
         let mut reader = GGufReader::new(val);
@@ -132,7 +132,7 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取 f32 数组类型的元数据键值对
+    /// 获取 f32 数组类型的元数据键值对。
     fn get_f32_arr(&self, key: &str) -> Result<GGufMetaValueArray<f32>, GGufMetaError> {
         let (ty, val) = self.get(key).ok_or(GGufMetaError::NotExist)?;
         let mut reader = GGufReader::new(val);
@@ -148,19 +148,19 @@ pub trait GGufMetaMapExt: GGufMetaMap {
     }
 
     /// # general 字段元数据键值对获取函数
-    /// 获取架构
+    /// 获取架构。
     #[inline]
     fn general_architecture(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.architecture")
     }
 
-    /// 获取量化版本
+    /// 获取量化版本。
     #[inline]
     fn general_quantization_version(&self) -> Result<usize, GGufMetaError> {
         self.get_usize("general.quantization_version")
     }
 
-    /// 获取对齐方式
+    /// 获取对齐方式。
     #[inline]
     fn general_alignment(&self) -> Result<usize, GGufMetaError> {
         match self.get_usize("general.alignment") {
@@ -170,121 +170,121 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取名称
+    /// 获取名称。
     #[inline]
     fn general_name(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.name")
     }
 
-    /// 获取作者
+    /// 获取作者。
     #[inline]
     fn general_author(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.author")
     }
 
-    /// 获取版本
+    /// 获取版本。
     #[inline]
     fn general_version(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.version")
     }
 
-    /// 获取组织
+    /// 获取组织。
     #[inline]
     fn general_organization(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.organization")
     }
 
-    /// 获取基准名称
+    /// 获取基准名称。
     #[inline]
     fn general_basename(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.basename")
     }
 
-    /// 获取微调标识
+    /// 获取微调标识。
     #[inline]
     fn general_finetune(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.finetune")
     }
 
-    /// 获取描述
+    /// 获取描述。
     #[inline]
     fn general_description(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.description")
     }
 
-    /// 获取量化作者
+    /// 获取量化作者。
     #[inline]
     fn general_quantized_by(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.quantized_by")
     }
 
-    /// 获取量化版本
+    /// 获取量化版本。
     #[inline]
     fn general_size_label(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.size_label")
     }
 
-    /// 获取许可
+    /// 获取许可。
     #[inline]
     fn general_license(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.license")
     }
 
-    /// 获取许可名称
+    /// 获取许可名称。
     #[inline]
     fn general_license_name(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.license.name")
     }
 
-    /// 获取许可链接
+    /// 获取许可链接。
     #[inline]
     fn general_license_link(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.license.link")
     }
 
-    /// 获取链接
+    /// 获取链接。
     #[inline]
     fn general_url(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.url")
     }
 
-    /// 获取 DOI
+    /// 获取 DOI。
     #[inline]
     fn general_doi(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.doi")
     }
 
-    /// 获取 UUID
+    /// 获取 UUID。
     #[inline]
     fn general_uuid(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.uuid")
     }
 
-    /// 获取仓库链接
+    /// 获取仓库链接。
     #[inline]
     fn general_repo_url(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.repo_url")
     }
 
-    /// 获取标签
+    /// 获取标签。
     #[inline]
     fn general_tags(&self) -> Result<GGufMetaValueArray<str>, GGufMetaError> {
         self.get_str_arr("general.tags")
     }
 
-    /// 获取语言
+    /// 获取语言。
     #[inline]
     fn general_languages(&self) -> Result<GGufMetaValueArray<str>, GGufMetaError> {
         self.get_str_arr("general.languages")
     }
 
-    /// 获取数据集
+    /// 获取数据集。
     #[inline]
     fn general_datasets(&self) -> Result<GGufMetaValueArray<str>, GGufMetaError> {
         self.get_str_arr("general.datasets")
     }
 
-    /// 获取文件类型
+    /// 获取文件类型。
     #[inline]
     fn general_filetype(&self) -> Result<GGufFileType, GGufMetaError> {
         (self.get_usize("general.filetype")? as u32)
@@ -292,149 +292,149 @@ pub trait GGufMetaMapExt: GGufMetaMap {
             .map_err(|_| GGufMetaError::OutOfRange)
     }
 
-    /// 获取源信息
+    /// 获取源信息。
     #[inline]
     fn general_source_url(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.source.url")
     }
 
-    /// 获取源 DOI
+    /// 获取源 DOI。
     #[inline]
     fn general_source_doi(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.source.doi")
     }
 
-    /// 获取源 UUID
+    /// 获取源 UUID。
     #[inline]
     fn general_source_uuid(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.source.uuid")
     }
 
-    /// 获取源仓库链接
+    /// 获取源仓库链接。
     #[inline]
     fn general_source_repo_url(&self) -> Result<&str, GGufMetaError> {
         self.get_str("general.source.repo_url")
     }
 
-    /// 获取基准模型数量
+    /// 获取基准模型数量。
     #[inline]
     fn general_base_model_count(&self) -> Result<usize, GGufMetaError> {
         self.get_usize("general.base_model.count")
     }
 
-    /// 获取基准模型名称
+    /// 获取基准模型名称。
     #[inline]
     fn general_base_model_name(&self, id: usize) -> Result<&str, GGufMetaError> {
         self.get_str(&format!("general.base_model.{id}.name"))
     }
 
-    /// 获取基准模型作者
+    /// 获取基准模型作者。
     #[inline]
     fn general_base_model_author(&self, id: usize) -> Result<&str, GGufMetaError> {
         self.get_str(&format!("general.base_model.{id}.author"))
     }
 
-    /// 获取基准模型版本
+    /// 获取基准模型版本。
     #[inline]
     fn general_base_model_version(&self, id: usize) -> Result<&str, GGufMetaError> {
         self.get_str(&format!("general.base_model.{id}.version"))
     }
 
-    /// 获取基准模型组织
+    /// 获取基准模型组织。
     #[inline]
     fn general_base_model_organization(&self, id: usize) -> Result<&str, GGufMetaError> {
         self.get_str(&format!("general.base_model.{id}.organization"))
     }
 
-    /// 获取基准模型 URL
+    /// 获取基准模型 URL。
     #[inline]
     fn general_base_model_url(&self, id: usize) -> Result<&str, GGufMetaError> {
         self.get_str(&format!("general.base_model.{id}.url"))
     }
 
-    /// 获取基准模型 DOI
+    /// 获取基准模型 DOI。
     #[inline]
     fn general_base_model_doi(&self, id: usize) -> Result<&str, GGufMetaError> {
         self.get_str(&format!("general.base_model.{id}.doi"))
     }
 
-    /// 获取基准模型 UUID
+    /// 获取基准模型 UUID。
     #[inline]
     fn general_base_model_uuid(&self, id: usize) -> Result<&str, GGufMetaError> {
         self.get_str(&format!("general.base_model.{id}.uuid"))
     }
 
-    /// 获取基准模型仓库链接
+    /// 获取基准模型仓库链接。
     #[inline]
     fn general_base_model_repo_url(&self, id: usize) -> Result<&str, GGufMetaError> {
         self.get_str(&format!("general.base_model.{id}.repo_url"))
     }
 
     /// # llm 字段元数据键值对获取函数
-    /// 获取上下文长度
+    /// 获取上下文长度。
     #[inline]
     fn llm_context_length(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.context_length"))
     }
 
-    /// 获取嵌入层长度
+    /// 获取嵌入层长度。
     #[inline]
     fn llm_embedding_length(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.embedding_length"))
     }
 
-    /// 获取块数量
+    /// 获取块数量。
     #[inline]
     fn llm_block_count(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.block_count"))
     }
 
-    /// 获取前馈层长度
+    /// 获取前馈层长度。
     #[inline]
     fn llm_feed_forward_length(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.feed_forward_length"))
     }
 
-    /// 获取是否使用并行残差
+    /// 获取是否使用并行残差。
     #[inline]
     fn llm_use_parallel_residual(&self) -> Result<bool, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_bool(&format!("{llm}.use_parallel_residual"))
     }
 
-    /// 获取张量数据布局
+    /// 获取张量数据布局。
     #[inline]
     fn llm_tensor_data_layout(&self) -> Result<&str, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_str(&format!("{llm}.tensor_data_layout"))
     }
 
-    /// 获取专家数量
+    /// 获取专家数量。
     #[inline]
     fn llm_expert_count(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.expert_count"))
     }
 
-    /// 获取已使用的专家数量
+    /// 获取已使用的专家数量。
     #[inline]
     fn llm_expert_used_count(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.expert_used_count"))
     }
 
-    /// 获取注意力头数量
+    /// 获取注意力头数量。
     #[inline]
     fn llm_attention_head_count(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.attention.head_count"))
     }
 
-    /// 获取注意力 KV 头数量
+    /// 获取注意力 KV 头数量。
     #[inline]
     fn llm_attention_head_count_kv(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
@@ -445,35 +445,35 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取最大 Alibi 偏置值
+    /// 获取最大 Alibi 偏置值。
     #[inline]
     fn llm_attention_max_alibi_bias(&self) -> Result<f32, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_f32(&format!("{llm}.attention.max_alibi_bias"))
     }
 
-    /// 获取 K/Q/V 限幅阈值
+    /// 获取 K/Q/V 限幅阈值。
     #[inline]
     fn llm_attention_clamp_kqv(&self) -> Result<f32, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_f32(&format!("{llm}.attention.clamp_kqv"))
     }
 
-    /// 获取归一化 ε 参数
+    /// 获取归一化 ε 参数。
     #[inline]
     fn llm_attention_layer_norm_epsilon(&self) -> Result<f32, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_f32(&format!("{llm}.attention.layer_norm_epsilon"))
     }
 
-    /// 获取 RMS 归一化 ε 参数
+    /// 获取 RMS 归一化 ε 参数。
     #[inline]
     fn llm_attention_layer_norm_rms_epsilon(&self) -> Result<f32, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_f32(&format!("{llm}.attention.layer_norm_rms_epsilon"))
     }
 
-    /// 获取注意力 Key 长度
+    /// 获取注意力 Key 长度。
     #[inline]
     fn llm_attention_key_length(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
@@ -488,7 +488,7 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取注意力 Value 长度
+    /// 获取注意力 Value 长度。
     #[inline]
     fn llm_attention_value_length(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
@@ -503,77 +503,77 @@ pub trait GGufMetaMapExt: GGufMetaMap {
         }
     }
 
-    /// 获取 RoPE 维度数量
+    /// 获取 RoPE 维度数量。
     #[inline]
     fn llm_rope_dimension_count(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.rope.dimension_count"))
     }
 
-    /// 获取 RoPE 频率基数
+    /// 获取 RoPE 频率基数。
     #[inline]
     fn llm_rope_freq_base(&self) -> Result<f32, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_f32(&format!("{llm}.rope.freq_base"))
     }
 
-    /// 获取 RoPE 缩放类型
+    /// 获取 RoPE 缩放类型。
     #[inline]
     fn llm_rope_scaling_type(&self) -> Result<&str, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_str(&format!("{llm}.rope.scaling.type"))
     }
 
-    /// 获取 RoPE 缩放因子
+    /// 获取 RoPE 缩放因子。
     #[inline]
     fn llm_rope_scaling_factor(&self) -> Result<f32, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_f32(&format!("{llm}.rope.scaling.factor"))
     }
 
-    /// 获取 RoPE 缩放的原始上下文长度
+    /// 获取 RoPE 缩放的原始上下文长度。
     #[inline]
     fn llm_rope_scaling_original_context_length(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.rope.scaling.original_context_length"))
     }
 
-    /// 获取 RoPE 缩放是否经过微调
+    /// 获取 RoPE 缩放是否经过微调。
     #[inline]
     fn llm_rope_scaling_finetuned(&self) -> Result<bool, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_bool(&format!("{llm}.rope.scaling.finetuned"))
     }
 
-    /// 获取 RoPE 缩放线性因子
+    /// 获取 RoPE 缩放线性因子。
     #[inline]
     fn llm_rope_scale_linear(&self) -> Result<f32, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_f32(&format!("{llm}.rope.scale_linear"))
     }
 
-    /// 获取状态空间模型（SSM）卷积核大小
+    /// 获取状态空间模型（SSM）卷积核大小。
     #[inline]
     fn llm_ssm_conv_kernel(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.ssm.conv_kernel"))
     }
 
-    /// 获取状态空间模型（SSM）内部大小
+    /// 获取状态空间模型（SSM）内部大小。
     #[inline]
     fn llm_ssm_inner_size(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.ssm.inner_size"))
     }
 
-    /// 获取状态空间模型（SSM）状态大小
+    /// 获取状态空间模型（SSM）状态大小。
     #[inline]
     fn llm_ssm_state_size(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
         self.get_usize(&format!("{llm}.ssm.state_size"))
     }
 
-    /// 获取状态空间模型（SSM）时间步长秩
+    /// 获取状态空间模型（SSM）时间步长秩。
     #[inline]
     fn llm_ssm_time_step_rank(&self) -> Result<usize, GGufMetaError> {
         let llm = self.general_architecture().unwrap();
@@ -581,79 +581,79 @@ pub trait GGufMetaMapExt: GGufMetaMap {
     }
 
     /// # tokenizer 字段元数据键值对获取函数
-    /// 获取用于 ggml 的分词器模型
+    /// 获取用于 ggml 的分词器模型。
     #[inline]
     fn tokenizer_ggml_model(&self) -> Result<&str, GGufMetaError> {
         self.get_str("tokenizer.ggml.model")
     }
 
-    /// 获取 ggml 分词器的词汇表
+    /// 获取 ggml 分词器的词汇表。
     #[inline]
     fn tokenizer_ggml_tokens(&self) -> Result<GGufMetaValueArray<str>, GGufMetaError> {
         self.get_str_arr("tokenizer.ggml.tokens")
     }
 
-    /// 获取 ggml 分词器的分数
+    /// 获取 ggml 分词器的分数。
     #[inline]
     fn tokenizer_ggml_scores(&self) -> Result<GGufMetaValueArray<f32>, GGufMetaError> {
         self.get_f32_arr("tokenizer.ggml.scores")
     }
 
-    /// 获取 ggml 分词器的 token 类型
+    /// 获取 ggml 分词器的 token 类型。
     #[inline]
     fn tokenizer_ggml_token_type(&self) -> Result<GGufMetaValueArray<i32>, GGufMetaError> {
         self.get_i32_arr("tokenizer.ggml.token_type")
     }
 
-    /// 获取 ggml 分词器的合并规则
+    /// 获取 ggml 分词器的合并规则。
     #[inline]
     fn tokenizer_ggml_merges(&self) -> Result<GGufMetaValueArray<str>, GGufMetaError> {
         self.get_str_arr("tokenizer.ggml.merges")
     }
 
-    /// 获取 ggml 分词器的添加的 token
+    /// 获取 ggml 分词器的添加的 token。
     #[inline]
     fn tokenizer_ggml_added_tokens(&self) -> Result<GGufMetaValueArray<str>, GGufMetaError> {
         self.get_str_arr("tokenizer.ggml.added_tokens")
     }
 
-    /// 获取 ggml 分词器的起始标记 ID
+    /// 获取 ggml 分词器的起始标记 ID。
     #[inline]
     fn tokenizer_ggml_bos_token_id(&self) -> Result<u32, GGufMetaError> {
         self.get_u32("tokenizer.ggml.bos_token_id")
     }
 
-    /// 获取 ggml 分词器的结束标记 ID
+    /// 获取 ggml 分词器的结束标记 ID。
     #[inline]
     fn tokenizer_ggml_eos_token_id(&self) -> Result<u32, GGufMetaError> {
         self.get_u32("tokenizer.ggml.eos_token_id")
     }
 
-    /// 获取 ggml 分词器的未知标记 ID
+    /// 获取 ggml 分词器的未知标记 ID。
     #[inline]
     fn tokenizer_ggml_unknown_token_id(&self) -> Result<u32, GGufMetaError> {
         self.get_u32("tokenizer.ggml.unknown_token_id")
     }
 
-    /// 获取 ggml 分词器的分隔符标记 ID
+    /// 获取 ggml 分词器的分隔符标记 ID。
     #[inline]
     fn tokenizer_ggml_separator_token_id(&self) -> Result<u32, GGufMetaError> {
         self.get_u32("tokenizer.ggml.separator_token_id")
     }
 
-    /// 获取 ggml 分词器的填充标记 ID
+    /// 获取 ggml 分词器的填充标记 ID。
     #[inline]
     fn tokenizer_ggml_padding_token_id(&self) -> Result<u32, GGufMetaError> {
         self.get_u32("tokenizer.ggml.padding_token_id")
     }
 
-    /// 获取 RWKV 分词器的词表
+    /// 获取 RWKV 分词器的词表。
     #[inline]
     fn tokenizer_rwkv_world(&self) -> Result<&str, GGufMetaError> {
         self.get_str("tokenizer.rwkv.world")
     }
 
-    /// 获取聊天模板
+    /// 获取聊天模板。
     #[inline]
     fn tokenizer_chat_template(&self) -> Result<&str, GGufMetaError> {
         self.get_str("tokenizer.chat_template")
