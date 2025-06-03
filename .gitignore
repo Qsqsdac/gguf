@@ -4,3 +4,4 @@
 !/.cargo/
 *.gguf
 *.meta
+!/test-files/*.gguf
