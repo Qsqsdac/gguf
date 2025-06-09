@@ -221,7 +221,7 @@ fn test_name() {
         let parsed = GGufFileName::try_from(name).unwrap();
         let formatted = parsed.to_string();
         let reparsed = GGufFileName::try_from(formatted.as_str()).unwrap();
-        
+
         assert_eq!(parsed.size_label, reparsed.size_label);
         assert_eq!(parsed.fine_tune, reparsed.fine_tune);
         assert_eq!(parsed.version, reparsed.version);
