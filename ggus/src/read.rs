@@ -12,7 +12,7 @@ pub struct GGufReader<'a>(&'a [u8]);
 /// [`GGufReadError`] 定义 GGUF 读取器可能遇到的错误。
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum GGufReadError {
-    /// 读取过程中遇到的错误。
+    /// 读取过程中文件异常结束，通常表示尝试读取超出文件末尾的数据。
     Eos,
     /// 读取的字符串不是有效的 UTF-8 编码。
     Utf8(Utf8Error),

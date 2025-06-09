@@ -218,7 +218,16 @@ impl fmt::Display for GGufFileName<'_> {
 #[test]
 fn test_name() {
     fn check(name: &str) {
-        println!("{name} -> {}", GGufFileName::try_from(name).unwrap())
+        let parsed = GGufFileName::try_from(name).unwrap();
+        let formatted = parsed.to_string();
+        let reparsed = GGufFileName::try_from(formatted.as_str()).unwrap();
+        
+        assert_eq!(parsed.size_label, reparsed.size_label);
+        assert_eq!(parsed.fine_tune, reparsed.fine_tune);
+        assert_eq!(parsed.version, reparsed.version);
+        assert_eq!(parsed.encoding, reparsed.encoding);
+        assert_eq!(parsed.type_, reparsed.type_);
+        assert_eq!(parsed.shard, reparsed.shard);
     }
 
     check("mmproj.gguf");
